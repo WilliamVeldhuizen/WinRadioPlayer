@@ -1,0 +1,13 @@
+<Project>
+
+  <!--
+    Workaround for Microsoft.WindowsAppSDK.WinUI: inside Visual Studio its GetVCInstallPath target
+    enumerates $(VsInstallRoot)\VC\Tools\MSVC and crashes (MSB4018, DirectoryNotFoundException) when the
+    C++ workload is not installed. That path only matters for C++ XAML projects, and the dotnet CLI build
+    skips it entirely, so for C# projects without the C++ tools the target is replaced by a no-op.
+    Directory.Build.targets is imported after NuGet package targets, so this definition wins.
+  -->
+  <Target Name="GetVCInstallPath"
+          Condition="'$(Language)' == 'C#' and '$(VsInstallRoot)' != '' and !Exists('$(VsInstallRoot)\VC\Tools\MSVC')" />
+
+</Project>

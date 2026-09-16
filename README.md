@@ -5,16 +5,16 @@ Internetradio voor Windows (.NET 10 + WinUI 3 / Windows App SDK).
 ## Waarom
 
 Veel zenders laten reclame horen zodra je verbinding maakt. Bij gewone radiospelers gebeurt dat bij elke wissel van zender.
-Deze speler houdt de streams van je favorieten (maximaal 10) **altijd open en gedempt**. Als je een favoriet aanklikt,
+Deze speler houdt de streams van je favorieten (maximaal 20) **altijd open en gedempt**. Als je een favoriet aanklikt,
 wordt die stream alleen maar hoorbaar gemaakt. Je zit dan meteen live in het programma, zonder nieuwe verbinding en zonder reclame vooraf.
 
-Kost wel bandbreedte: elke favoriet is een doorlopende stream van ongeveer 64 tot 320 kbit/s.
+Kost wel bandbreedte: elke favoriet is een doorlopende stream van ongeveer 64 tot 320 kbit/s, dus 20 favorieten zijn samen meestal zo’n 2 à 4 Mbit/s (hooguit ruim 6).
 
 ## Functies
 
 - Zenderlijst: de nieuwste `stations-yyyy-MM-dd.rsd` van http://rb2rs.freemyip.com/ (~52.000 zenders), lokaal bewaard voor offline gebruik.
 - Zoeken op naam, genre of land, plus een filter per land. `qmusic` vindt ook "Q music".
-- Favorieten toevoegen met de ster, volgorde wijzigen door te slepen, `Ctrl+1` … `Ctrl+0` om te wisselen.
+- Favorieten toevoegen met de ster, volgorde wijzigen door te slepen, `Ctrl+1` … `Ctrl+0` om te wisselen naar favoriet 1 t/m 10.
 - `Ctrl+Spatie` om te stoppen of af te spelen, `Ctrl+F` om te zoeken.
 - `.pls`, `.m3u` en `.asx` playlists worden omgezet naar de echte stream. HLS (`.m3u8`) wordt direct afgespeeld.
 - Verbroken of vastgelopen streams maken automatisch opnieuw verbinding.

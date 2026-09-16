@@ -7,7 +7,7 @@ namespace WinRadioPlayer.Core.Settings;
 public sealed class AppSettings
 {
     /// <summary>Favorites keep streaming (muted) in the background, so their number is capped.</summary>
-    public const int MaxFavorites = 10;
+    public const int MaxFavorites = 20;
 
     public List<Station> Favorites { get; set; } = [];
 
