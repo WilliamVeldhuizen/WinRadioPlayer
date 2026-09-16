@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="WinRadioPlayer.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:WinRadioPlayer"
+    xmlns:vm="using:WinRadioPlayer.ViewModels"
+    Title="Radio">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop />
+    </Window.SystemBackdrop>
+
+    <Grid x:Name="Root">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="48" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid.Resources>
+            <Style x:Key="CardStyle" TargetType="Border">
+                <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="8" />
+            </Style>
+            <Style x:Key="IconButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Width" Value="36" />
+                <Setter Property="Height" Value="36" />
+                <Setter Property="Padding" Value="0" />
+            </Style>
+        </Grid.Resources>
+
+        <!-- Title bar -->
+        <Grid x:Name="AppTitleBar" Padding="16,0,0,0">
+            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <FontIcon Glyph="&#xE93E;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                <TextBlock Text="Radio" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" />
+            </StackPanel>
+        </Grid>
+
+        <InfoBar
+            Grid.Row="1"
+            Margin="12,0,12,8"
+            Severity="Warning"
+            IsOpen="{x:Bind ViewModel.IsErrorOpen, Mode=TwoWay}"
+            Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}" />
+
+        <Grid Grid.Row="2" Padding="12,0,12,12" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="360" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Favorites -->
+            <Border Style="{StaticResource CardStyle}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Padding="16,14,16,8" Spacing="2">
+                        <TextBlock Text="{x:Bind ViewModel.FavoritesHeader, Mode=OneWay}" Style="{StaticResource SubtitleTextBlockStyle}" />
+                        <TextBlock
+                            Text="Favorieten spelen gedempt door op de achtergrond. Wisselen is dus direct live, zonder opnieuw te verbinden en zonder reclame vooraf."
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <TextBlock
+                        Grid.Row="1"
+                        Margin="16"
+                        Text="Nog geen favorieten. Zoek rechts een zender en klik op de ster."
+                        TextWrapping="Wrap"
+                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                        Visibility="{x:Bind ViewModel.HasNoFavorites, Mode=OneWay}" />
+
+                    <ListView
+                        Grid.Row="1"
+                        Padding="0,0,0,8"
+                        ItemsSource="{x:Bind ViewModel.Favorites}"
+                        SelectionMode="None"
+                        IsItemClickEnabled="True"
+                        ItemClick="Favorite_ItemClick"
+                        CanReorderItems="True"
+                        CanDragItems="True"
+                        AllowDrop="True">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="vm:FavoriteViewModel">
+                                <Grid Padding="0,8" ColumnSpacing="10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="3" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <Rectangle
+                                        RadiusX="1.5" RadiusY="1.5"
+                                        Fill="{ThemeResource AccentFillColorDefaultBrush}"
+                                        Visibility="{x:Bind IsActive, Mode=OneWay}" />
+
+                                    <StackPanel Grid.Column="1" Spacing="2">
+                                        <TextBlock Text="{x:Bind Name}" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock
+                                            Text="{x:Bind Subtitle}"
+                                            Style="{StaticResource CaptionTextBlockStyle}"
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                            TextTrimming="CharacterEllipsis" />
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{x:Bind local:UiHelpers.StatusBrush(Status), Mode=OneWay}" />
+                                            <TextBlock Text="{x:Bind StatusText, Mode=OneWay}" Style="{StaticResource CaptionTextBlockStyle}" />
+                                            <TextBlock
+                                                Text="{x:Bind ShortcutText, Mode=OneWay}"
+                                                Style="{StaticResource CaptionTextBlockStyle}"
+                                                Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <Button
+                                        Grid.Column="2"
+                                        Style="{StaticResource IconButtonStyle}"
+                                        VerticalAlignment="Center"
+                                        ToolTipService.ToolTip="Verwijderen uit favorieten"
+                                        Click="RemoveFavorite_Click">
+                                        <FontIcon Glyph="&#xE711;" FontSize="12" />
+                                    </Button>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </Grid>
+            </Border>
+
+            <!-- Station search -->
+            <Border Grid.Column="1" Style="{StaticResource CardStyle}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Grid Padding="16,14,16,4" ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="200" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBox
+                            x:Name="SearchBox"
+                            PlaceholderText="Zoek op naam, genre of land (Ctrl+F)"
+                            Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                        <ComboBox
+                            Grid.Column="1"
+                            HorizontalAlignment="Stretch"
+                            ItemsSource="{x:Bind ViewModel.Countries, Mode=OneWay}"
+                            SelectedItem="{x:Bind ViewModel.SelectedCountry, Mode=OneWay}"
+                            SelectionChanged="Country_SelectionChanged" />
+                        <Button
+                            Grid.Column="2"
+                            Style="{StaticResource IconButtonStyle}"
+                            Width="32" Height="32"
+                            ToolTipService.ToolTip="Zenderlijst opnieuw ophalen"
+                            Command="{x:Bind ViewModel.ReloadCatalogCommand}">
+                            <FontIcon Glyph="&#xE72C;" FontSize="14" />
+                        </Button>
+                    </Grid>
+
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Padding="16,4,16,4">
+                        <ProgressRing Width="14" Height="14" IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}" Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay}" />
+                        <TextBlock
+                            Text="{x:Bind ViewModel.CatalogStatus, Mode=OneWay}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+
+                    <ListView
+                        Grid.Row="2"
+                        Padding="0,0,0,8"
+                        ItemsSource="{x:Bind ViewModel.Results, Mode=OneWay}"
+                        SelectionMode="None"
+                        IsItemClickEnabled="True"
+                        ItemClick="Station_ItemClick">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="vm:StationResultViewModel">
+                                <Grid Padding="0,6" ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock
+                                            Text="{x:Bind Subtitle}"
+                                            Style="{StaticResource CaptionTextBlockStyle}"
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                            TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                    <Button
+                                        Grid.Column="1"
+                                        Style="{StaticResource IconButtonStyle}"
+                                        VerticalAlignment="Center"
+                                        ToolTipService.ToolTip="Favoriet aan/uit"
+                                        Click="ToggleFavorite_Click">
+                                        <FontIcon
+                                            FontSize="16"
+                                            Glyph="{x:Bind local:UiHelpers.StarGlyph(IsFavorite), Mode=OneWay}"
+                                            Foreground="{x:Bind local:UiHelpers.StarBrush(IsFavorite), Mode=OneWay}" />
+                                    </Button>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Now playing -->
+        <Border
+            Grid.Row="3"
+            Padding="16,12"
+            Background="{ThemeResource LayerFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="0,1,0,0">
+            <Grid ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="180" />
+                </Grid.ColumnDefinitions>
+
+                <Button
+                    Style="{StaticResource AccentButtonStyle}"
+                    Width="48" Height="48" CornerRadius="24" Padding="0"
+                    ToolTipService.ToolTip="Afspelen / stoppen (Ctrl+Spatie)"
+                    Command="{x:Bind ViewModel.TogglePlaybackCommand}">
+                    <FontIcon Glyph="{x:Bind local:UiHelpers.PlayGlyph(ViewModel.IsPlaying), Mode=OneWay}" FontSize="18" />
+                </Button>
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                    <TextBlock Text="{x:Bind ViewModel.NowPlayingName, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock
+                        Text="{x:Bind ViewModel.NowPlayingStatus, Mode=OneWay}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+
+                <FontIcon Grid.Column="2" Glyph="&#xE767;" FontSize="16" VerticalAlignment="Center" />
+                <Slider
+                    Grid.Column="3"
+                    VerticalAlignment="Center"
+                    Minimum="0" Maximum="100" StepFrequency="1"
+                    Value="{x:Bind ViewModel.Volume, Mode=TwoWay}" />
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

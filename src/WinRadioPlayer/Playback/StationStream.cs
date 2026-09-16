@@ -1,0 +1,244 @@
+using Microsoft.UI.Dispatching;
+using Windows.Media.Core;
+using Windows.Media.Playback;
+using WinRadioPlayer.Core.Models;
+using WinRadioPlayer.Core.Streaming;
+
+namespace WinRadioPlayer.Playback;
+
+public enum StreamStatus
+{
+    Connecting,
+    Live,
+    Buffering,
+    Reconnecting,
+    Failed,
+}
+
+/// <summary>
+/// A single station stream that keeps running for as long as it exists. It starts muted;
+/// listening to it is a matter of unmuting, so switching never opens a new connection
+/// (which is where most stations insert their pre-roll ads).
+/// Dropped connections are re-established automatically with a back-off.
+/// All members must be used on the UI thread; player events are marshalled to it.
+/// </summary>
+public sealed class StationStream : IDisposable
+{
+    private static readonly TimeSpan[] RetryDelays =
+        [TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(30)];
+
+    /// <summary>How long a stream may be opening or buffering before it is considered stuck.</summary>
+    private static readonly TimeSpan StallTimeout = TimeSpan.FromSeconds(45);
+
+    private readonly DispatcherQueue _dispatcher;
+    private readonly StreamUrlResolver _resolver;
+    private readonly MediaPlayer _player;
+    private readonly DispatcherQueueTimer _watchdog;
+    private readonly DispatcherQueueTimer _retryTimer;
+    private CancellationTokenSource? _connectCts;
+    private MediaSource? _source;
+    private int _failedAttempts;
+    private DateTime _lastPlayingUtc;
+    private bool _disposed;
+
+    public StationStream(Station station, StreamUrlResolver resolver, DispatcherQueue dispatcher, double volume)
+    {
+        Station = station;
+        _resolver = resolver;
+        _dispatcher = dispatcher;
+
+        _player = new MediaPlayer
+        {
+            AudioCategory = MediaPlayerAudioCategory.Media,
+            AutoPlay = true,
+            IsMuted = true,
+            Volume = volume,
+        };
+        // With several players alive, the system media overlay would only get confused.
+        _player.CommandManager.IsEnabled = false;
+        _player.MediaOpened += OnMediaOpened;
+        _player.MediaFailed += OnMediaFailed;
+        _player.MediaEnded += OnMediaEnded;
+        _player.PlaybackSession.PlaybackStateChanged += OnPlaybackStateChanged;
+
+        _watchdog = dispatcher.CreateTimer();
+        _watchdog.Interval = TimeSpan.FromSeconds(5);
+        _watchdog.Tick += (_, _) => CheckForStall();
+
+        _retryTimer = dispatcher.CreateTimer();
+        _retryTimer.IsRepeating = false;
+        _retryTimer.Tick += (_, _) => _ = ConnectAsync();
+    }
+
+    public Station Station { get; }
+
+    public StreamStatus Status { get; private set; } = StreamStatus.Connecting;
+
+    public string? LastError { get; private set; }
+
+    public event EventHandler? StatusChanged;
+
+    public bool IsMuted
+    {
+        get => _player.IsMuted;
+        set => _player.IsMuted = value;
+    }
+
+    public double Volume
+    {
+        get => _player.Volume;
+        set => _player.Volume = value;
+    }
+
+    public void Start() => _ = ConnectAsync();
+
+    private async Task ConnectAsync()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _retryTimer.Stop();
+        _connectCts?.Cancel();
+        var cts = _connectCts = new CancellationTokenSource();
+        SetStatus(_failedAttempts == 0 ? StreamStatus.Connecting : StreamStatus.Reconnecting);
+
+        try
+        {
+            var uri = await _resolver.ResolveAsync(new Uri(Station.Url), cts.Token);
+            if (cts.IsCancellationRequested || _disposed)
+            {
+                return;
+            }
+
+            ReleaseSource();
+            _source = MediaSource.CreateFromUri(uri);
+            _player.Source = _source;
+            _lastPlayingUtc = DateTime.UtcNow;
+            _watchdog.Start();
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            ScheduleReconnect(ex.Message);
+        }
+    }
+
+    private void ScheduleReconnect(string reason)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _watchdog.Stop();
+        ReleaseSource();
+        LastError = reason;
+
+        var delay = RetryDelays[Math.Min(_failedAttempts, RetryDelays.Length - 1)];
+        _failedAttempts++;
+        SetStatus(_failedAttempts > RetryDelays.Length ? StreamStatus.Failed : StreamStatus.Reconnecting);
+
+        _retryTimer.Interval = delay;
+        _retryTimer.Start();
+    }
+
+    private void CheckForStall()
+    {
+        if (_player.PlaybackSession.PlaybackState == MediaPlaybackState.Playing)
+        {
+            _lastPlayingUtc = DateTime.UtcNow;
+        }
+        else if (DateTime.UtcNow - _lastPlayingUtc > StallTimeout)
+        {
+            ScheduleReconnect("De stream reageert niet meer.");
+        }
+    }
+
+    private void OnMediaOpened(MediaPlayer sender, object args) => OnUiThread(() =>
+    {
+        _failedAttempts = 0;
+        LastError = null;
+        SetStatus(StreamStatus.Live);
+    });
+
+    private void OnMediaFailed(MediaPlayer sender, MediaPlayerFailedEventArgs args)
+    {
+        var message = string.IsNullOrWhiteSpace(args.ErrorMessage) ? args.Error.ToString() : args.ErrorMessage;
+        OnUiThread(() => ScheduleReconnect(message));
+    }
+
+    private void OnMediaEnded(MediaPlayer sender, object args) =>
+        OnUiThread(() => ScheduleReconnect("De stream is beëindigd."));
+
+    private void OnPlaybackStateChanged(MediaPlaybackSession sender, object args)
+    {
+        var state = sender.PlaybackState;
+        OnUiThread(() =>
+        {
+            switch (state)
+            {
+                case MediaPlaybackState.Playing:
+                    _lastPlayingUtc = DateTime.UtcNow;
+                    SetStatus(StreamStatus.Live);
+                    break;
+                case MediaPlaybackState.Buffering when Status == StreamStatus.Live:
+                    SetStatus(StreamStatus.Buffering);
+                    break;
+            }
+        });
+    }
+
+    private void OnUiThread(Action action) => _dispatcher.TryEnqueue(() =>
+    {
+        if (!_disposed)
+        {
+            action();
+        }
+    });
+
+    private void SetStatus(StreamStatus status)
+    {
+        if (Status != status)
+        {
+            Status = status;
+            StatusChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    private void ReleaseSource()
+    {
+        if (_source is null)
+        {
+            return;
+        }
+
+        _player.Source = null;
+        _source.Dispose();
+        _source = null;
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        _connectCts?.Cancel();
+        _watchdog.Stop();
+        _retryTimer.Stop();
+
+        _player.MediaOpened -= OnMediaOpened;
+        _player.MediaFailed -= OnMediaFailed;
+        _player.MediaEnded -= OnMediaEnded;
+        _player.PlaybackSession.PlaybackStateChanged -= OnPlaybackStateChanged;
+
+        ReleaseSource();
+        _player.Dispose();
+    }
+}

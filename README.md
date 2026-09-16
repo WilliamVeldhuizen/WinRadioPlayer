@@ -1,0 +1,37 @@
+# WinRadioPlayer
+
+Internetradio voor Windows (.NET 10 + WinUI 3 / Windows App SDK).
+
+## Waarom
+
+Veel zenders laten reclame horen zodra je verbinding maakt. Bij gewone radiospelers gebeurt dat bij elke wissel van zender.
+Deze speler houdt de streams van je favorieten (maximaal 10) **altijd open en gedempt**. Als je een favoriet aanklikt,
+wordt die stream alleen maar hoorbaar gemaakt. Je zit dan meteen live in het programma, zonder nieuwe verbinding en zonder reclame vooraf.
+
+Kost wel bandbreedte: elke favoriet is een doorlopende stream van ongeveer 64 tot 320 kbit/s.
+
+## Functies
+
+- Zenderlijst: de nieuwste `stations-yyyy-MM-dd.rsd` van http://rb2rs.freemyip.com/ (~52.000 zenders), lokaal bewaard voor offline gebruik.
+- Zoeken op naam, genre of land, plus een filter per land. `qmusic` vindt ook "Q music".
+- Favorieten toevoegen met de ster, volgorde wijzigen door te slepen, `Ctrl+1` … `Ctrl+0` om te wisselen.
+- `Ctrl+Spatie` om te stoppen of af te spelen, `Ctrl+F` om te zoeken.
+- `.pls`, `.m3u` en `.asx` playlists worden omgezet naar de echte stream. HLS (`.m3u8`) wordt direct afgespeeld.
+- Verbroken of vastgelopen streams maken automatisch opnieuw verbinding.
+- Een zender die geen favoriet is, speelt tijdelijk en stopt als je wisselt. Maak je hem favoriet terwijl hij speelt, dan blijft de stream open.
+
+## Bouwen en starten
+
+```powershell
+dotnet build
+dotnet run --project src/WinRadioPlayer
+dotnet test
+```
+
+Instellingen en de zendercache staan in `%LOCALAPPDATA%\WinRadioPlayer`.
+
+## Structuur
+
+- `src/WinRadioPlayer.Core`: ophalen en parsen van de zenderlijst, zoeken, playlists omzetten en instellingen. Geen UI, volledig getest.
+- `src/WinRadioPlayer`: WinUI-app. `Playback/RadioEngine` beheert de gedempte streams, `Playback/StationStream` is één `MediaPlayer` met herverbindlogica.
+- `tests/WinRadioPlayer.Core.Tests`: xUnit-tests.
