@@ -14,11 +14,19 @@
     <!-- Unpackaged app that carries the Windows App SDK runtime with it: just build and run. -->
     <WindowsPackageType>None</WindowsPackageType>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <!-- Without this, dotnet publish leaves out WinRadioPlayer.pri and the compiled .xbf XAML, and the app crashes on start. -->
+    <EnableMsixTooling>true</EnableMsixTooling>
     <SelfContained>false</SelfContained>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <Version>1.0.0</Version>
+    <Product>WinRadioPlayer</Product>
+    <ApplicationIcon>Assets\WinRadioPlayer.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\WinRadioPlayer.ico" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />

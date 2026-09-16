@@ -17,6 +17,7 @@ public sealed partial class MainWindow : Window
 
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
+        AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "WinRadioPlayer.ico"));
 
         var scale = GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)) / 96.0;
         AppWindow.Resize(new SizeInt32((int)(1100 * scale), (int)(720 * scale)));

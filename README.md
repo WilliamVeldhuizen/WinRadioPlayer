@@ -30,8 +30,21 @@ dotnet test
 
 Instellingen en de zendercache staan in `%LOCALAPPDATA%\WinRadioPlayer`.
 
+## Installer
+
+```powershell
+.\build-installer.ps1                         # artifacts\installer\WinRadioPlayer-1.0.0-x64.msi
+.\build-installer.ps1 -Version 1.1.0 -Arch arm64
+```
+
+De MSI (WiX 6) installeert de app in `Program Files\WinRadioPlayer` en maakt een snelkoppeling in het startmenu.
+.NET en de Windows App SDK zitten erin, dus op de doel-pc hoeft niets anders geïnstalleerd te zijn.
+Een MSI met een hoger `-Version` vervangt de oude installatie. Je favorieten blijven daarbij behouden.
+De MSI is niet digitaal ondertekend, dus Windows SmartScreen kan bij de eerste keer om bevestiging vragen.
+
 ## Structuur
 
 - `src/WinRadioPlayer.Core`: ophalen en parsen van de zenderlijst, zoeken, playlists omzetten en instellingen. Geen UI, volledig getest.
 - `src/WinRadioPlayer`: WinUI-app. `Playback/RadioEngine` beheert de gedempte streams, `Playback/StationStream` is één `MediaPlayer` met herverbindlogica.
 - `tests/WinRadioPlayer.Core.Tests`: xUnit-tests.
+- `installer`: WiX-project voor de MSI (niet in de solution, bouwen via `build-installer.ps1`).
