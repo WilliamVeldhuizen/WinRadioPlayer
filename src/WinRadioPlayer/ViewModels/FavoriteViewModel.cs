@@ -1,6 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using WinRadioPlayer.Core.Models;
-using WinRadioPlayer.Core.Streaming;
 using WinRadioPlayer.Playback;
 
 namespace WinRadioPlayer.ViewModels;
@@ -33,10 +32,11 @@ public sealed partial class FavoriteViewModel(Station station) : ObservableObjec
 
 public static class SongTexts
 {
-    public static string For(IcyMetadata? metadata) => metadata switch
+    public static string For(StationStream stream) => stream switch
     {
-        { IsAd: true } => "Advertisement",
-        { Title: { } title } => title,
+        { Metadata.IsAd: true } => "Advertisement",
+        { IsSongOverdue: true } => "Probably an ad break",
+        { Metadata.Title: { } title } => title,
         _ => "",
     };
 }

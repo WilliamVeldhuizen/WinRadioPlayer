@@ -30,25 +30,36 @@ public sealed class StationStream : IDisposable
     /// <summary>How long a stream may be opening or buffering before it is considered stuck.</summary>
     private static readonly TimeSpan StallTimeout = TimeSpan.FromSeconds(45);
 
+    /// <summary>
+    /// How long a song may run past its known length before an ad break is assumed. Covers titles sent a bit
+    /// late, the station playing a longer version, and a short announcement after the song.
+    /// </summary>
+    private static readonly TimeSpan SongOverrun = TimeSpan.FromSeconds(30);
+
     private readonly DispatcherQueue _dispatcher;
     private readonly StreamUrlResolver _resolver;
     private readonly IcyProxy? _proxy;
+    private readonly TrackDurations? _durations;
     private readonly MediaPlayer _player;
     private readonly DispatcherQueueTimer _watchdog;
     private readonly DispatcherQueueTimer _retryTimer;
+    private readonly DispatcherQueueTimer _songEndTimer;
     private CancellationTokenSource? _connectCts;
     private MediaSource? _source;
     private Uri? _relayUrl;
     private int _failedAttempts;
     private DateTime _lastPlayingUtc;
+    private int _songNumber;
     private bool _disposed;
 
     /// <param name="proxy">Relays the stream to read its song titles; null plays the station directly.</param>
-    public StationStream(Station station, StreamUrlResolver resolver, IcyProxy? proxy, DispatcherQueue dispatcher, double volume)
+    /// <param name="durations">Looks up song lengths to recognize unmarked ad breaks; null relies on ad markers only.</param>
+    public StationStream(Station station, StreamUrlResolver resolver, IcyProxy? proxy, TrackDurations? durations, DispatcherQueue dispatcher, double volume)
     {
         Station = station;
         _resolver = resolver;
         _proxy = proxy;
+        _durations = durations;
         _dispatcher = dispatcher;
 
         _player = new MediaPlayer
@@ -72,6 +83,10 @@ public sealed class StationStream : IDisposable
         _retryTimer = dispatcher.CreateTimer();
         _retryTimer.IsRepeating = false;
         _retryTimer.Tick += (_, _) => _ = ConnectAsync();
+
+        _songEndTimer = dispatcher.CreateTimer();
+        _songEndTimer.IsRepeating = false;
+        _songEndTimer.Tick += (_, _) => MarkSongOverdue();
     }
 
     public Station Station { get; }
@@ -85,6 +100,16 @@ public sealed class StationStream : IDisposable
     /// <summary>The latest song title (or ad marker) the station sent, or null when there is none.</summary>
     public IcyMetadata? Metadata { get; private set; }
 
+    /// <summary>
+    /// True when the current song should have ended a while ago and no new title came, which usually
+    /// means the station is playing ads without marking them.
+    /// </summary>
+    public bool IsSongOverdue { get; private set; }
+
+    /// <summary>True during an ad break the station marks, or one assumed from an overdue song.</summary>
+    public bool IsInAdBreak => Metadata?.IsAd == true || IsSongOverdue;
+
+    /// <summary>Raised when <see cref="Metadata"/> or <see cref="IsSongOverdue"/> changes.</summary>
     public event EventHandler? MetadataChanged;
 
     public bool IsMuted
@@ -159,9 +184,50 @@ public sealed class StationStream : IDisposable
 
     private void SetMetadata(IcyMetadata? metadata)
     {
-        if (Metadata != metadata)
+        if (Metadata == metadata)
         {
-            Metadata = metadata;
+            return;
+        }
+
+        Metadata = metadata;
+        _songNumber++;
+        _songEndTimer.Stop();
+        IsSongOverdue = false;
+        MetadataChanged?.Invoke(this, EventArgs.Empty);
+
+        if (_durations is not null && metadata is { IsAd: false, Title: { } title })
+        {
+            _ = WatchSongEndAsync(title);
+        }
+    }
+
+    /// <summary>
+    /// Times the song from the moment its title arrived. After tuning in halfway through a song it has
+    /// really been playing longer, so the ad break is then noticed a bit late rather than too early.
+    /// </summary>
+    private async Task WatchSongEndAsync(string title)
+    {
+        var songNumber = _songNumber;
+        var startedUtc = DateTime.UtcNow;
+        var duration = await _durations!.GetAsync(title);
+        OnUiThread(() =>
+        {
+            if (duration is null || songNumber != _songNumber)
+            {
+                return;
+            }
+
+            var remaining = startedUtc + duration.Value + SongOverrun - DateTime.UtcNow;
+            _songEndTimer.Interval = remaining > TimeSpan.FromSeconds(1) ? remaining : TimeSpan.FromSeconds(1);
+            _songEndTimer.Start();
+        });
+    }
+
+    private void MarkSongOverdue()
+    {
+        if (!IsSongOverdue)
+        {
+            IsSongOverdue = true;
             MetadataChanged?.Invoke(this, EventArgs.Empty);
         }
     }
@@ -279,6 +345,7 @@ public sealed class StationStream : IDisposable
         _connectCts?.Cancel();
         _watchdog.Stop();
         _retryTimer.Stop();
+        _songEndTimer.Stop();
 
         _player.MediaOpened -= OnMediaOpened;
         _player.MediaFailed -= OnMediaFailed;

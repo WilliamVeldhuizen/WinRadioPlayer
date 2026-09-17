@@ -26,7 +26,7 @@ It does cost bandwidth: each favorite is a continuous stream of roughly 64 to 32
 - When a country is selected, its most popular stations (by [radio-browser.info](https://www.radio-browser.info/) play count) are listed first.
 - Add favorites with the star, and reorder them by dragging.
 - Each favorite shows the song it is playing right now (or "Advertisement" during an ad break), for stations that send Shoutcast/Icecast titles.
-- **Skip ad breaks**: when the station you listen to starts an ad break, the player switches to the highest favorite in your list that is live and not playing an ad. If you pick a station yourself during its ad break, that break is not skipped.
+- **Skip ad breaks**: when the station you listen to starts an ad break, the player switches to the highest favorite in your list that is live and not playing an ad. Stations that do not mark their ads are recognized too: the length of each song is looked up (via the iTunes Search API), and when no new title arrives within 30 seconds after the song should have ended, an ad break is assumed ("Probably an ad break"). If you pick a station yourself during its ad break, that break is not skipped.
 - `Ctrl+Space` to stop or play, `Ctrl+M` to mute or unmute, `Ctrl+F` to search.
 - Right-click the taskbar button to switch to a favorite (each shown with its current song) or to mute and unmute, without switching to the window.
 - `.pls`, `.m3u` and `.asx` playlists are resolved to the actual stream. HLS (`.m3u8`) is played directly.

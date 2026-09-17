@@ -9,7 +9,7 @@ namespace WinRadioPlayer.Playback;
 /// A station that is not a favorite gets a temporary stream that is closed when you switch away,
 /// unless it is added to the favorites while playing, in which case its stream is kept.
 /// </summary>
-public sealed class RadioEngine(StreamUrlResolver resolver, IcyProxy? proxy, DispatcherQueue dispatcher) : IDisposable
+public sealed class RadioEngine(StreamUrlResolver resolver, IcyProxy? proxy, TrackDurations? durations, DispatcherQueue dispatcher) : IDisposable
 {
     private readonly Dictionary<string, StationStream> _favorites = new(StringComparer.Ordinal);
     private StationStream? _transient;
@@ -142,7 +142,7 @@ public sealed class RadioEngine(StreamUrlResolver resolver, IcyProxy? proxy, Dis
 
     private StationStream CreateAndStart(Station station)
     {
-        var stream = new StationStream(station, resolver, proxy, dispatcher, _volume);
+        var stream = new StationStream(station, resolver, proxy, durations, dispatcher, _volume);
         stream.StatusChanged += OnStreamStatusChanged;
         stream.MetadataChanged += OnStreamMetadataChanged;
         stream.Start();

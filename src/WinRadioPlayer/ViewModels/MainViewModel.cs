@@ -65,7 +65,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _streamHttp.DefaultRequestHeaders.UserAgent.ParseAdd("WinRadioPlayer/1.0");
         _proxy = new IcyProxy(_streamHttp);
 
-        _engine = new RadioEngine(new StreamUrlResolver(_http), _proxy, dispatcher) { Volume = Math.Clamp(_settings.Volume, 0, 1) };
+        _engine = new RadioEngine(new StreamUrlResolver(_http), _proxy, new TrackDurations(_http), dispatcher) { Volume = Math.Clamp(_settings.Volume, 0, 1) };
         _engine.ActiveChanged += (_, _) => UpdateNowPlaying();
         _engine.StreamStatusChanged += (_, stream) => OnStreamStatusChanged(stream);
         _engine.StreamMetadataChanged += (_, stream) => OnStreamMetadataChanged(stream);
@@ -218,7 +218,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _lastPlayed = station;
         _engine.Play(station);
         // Picking a station during its ad break means you want to hear it anyway, so that break is not skipped.
-        _chosenDuringAd = _engine.Active is { Metadata.IsAd: true } active ? active : null;
+        _chosenDuringAd = _engine.Active is { IsInAdBreak: true } active ? active : null;
     }
 
     [RelayCommand]
@@ -312,7 +312,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     partial void OnSkipAdBreaksChanged(bool value)
     {
         _settings.SkipAdBreaks = value;
-        if (value && _engine.Active is { Metadata.IsAd: true } active)
+        if (value && _engine.Active is { IsInAdBreak: true } active)
         {
             SkipAdBreak(active);
         }
@@ -323,7 +323,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         var next = Favorites
             .Select(f => _engine.Find(f.Station.Url))
-            .FirstOrDefault(s => s is not null && s != active && s.Status == StreamStatus.Live && s.Metadata?.IsAd != true);
+            .FirstOrDefault(s => s is not null && s != active && s.Status == StreamStatus.Live && !s.IsInAdBreak);
         if (next is not null)
         {
             Play(next.Station);
@@ -415,7 +415,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             if (_engine.Find(favorite.Station.Url) is { } stream)
             {
                 favorite.Status = stream.Status;
-                favorite.Song = SongTexts.For(stream.Metadata);
+                favorite.Song = SongTexts.For(stream);
             }
         }
 
@@ -505,11 +505,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         foreach (var favorite in Favorites.Where(f => f.Station.Url == stream.Station.Url))
         {
-            favorite.Song = SongTexts.For(stream.Metadata);
+            favorite.Song = SongTexts.For(stream);
             ScheduleJumpListUpdate();
         }
 
-        var isAd = stream.Metadata?.IsAd == true;
+        var isAd = stream.IsInAdBreak;
         if (stream == _chosenDuringAd && !isAd)
         {
             _chosenDuringAd = null;
@@ -544,7 +544,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         NowPlayingName = active.Station.Name;
         var isFavorite = Favorites.Any(f => f.Station.Url == active.Station.Url);
-        NowPlayingSong = SongTexts.For(active.Metadata);
+        NowPlayingSong = SongTexts.For(active);
         NowPlayingStatus = StatusTexts.For(active.Status, isActive: true)
                            + (IsMuted ? " · muted" : "")
                            + (isFavorite ? "" : " · not a favorite, stream stops when switching")

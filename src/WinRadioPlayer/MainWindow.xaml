@@ -75,7 +75,7 @@
                             Margin="0,4,0,0"
                             Content="Skip ad breaks"
                             IsChecked="{x:Bind ViewModel.SkipAdBreaks, Mode=TwoWay}"
-                            ToolTipService.ToolTip="When the station you are listening to starts an ad break, switch to the highest favorite that is live and not playing an ad. Only works for stations that mark their ads." />
+                            ToolTipService.ToolTip="When the station you are listening to starts an ad break, switch to the highest favorite that is live and not playing an ad. Stations that do not mark their ads are assumed to be in an ad break when a song runs well past its length." />
                     </StackPanel>
 
                     <TextBlock
