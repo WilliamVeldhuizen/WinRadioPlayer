@@ -24,7 +24,7 @@ It does cost bandwidth: each favorite is a continuous stream of roughly 64 to 32
 - Station list: the newest `stations-yyyy-MM-dd.rsd` from http://rb2rs.freemyip.com/ (~52,000 stations), stored locally for offline use.
 - Search by name, genre or country, plus a per-country filter. `qmusic` also finds "Q music".
 - When a country is selected, its most popular stations (by [radio-browser.info](https://www.radio-browser.info/) play count) are listed first.
-- Add favorites with the star, reorder them by dragging, and press `Ctrl+1` … `Ctrl+0` to switch to favorite 1 to 10.
+- Add favorites with the star, and reorder them by dragging.
 - Each favorite shows the song it is playing right now (or "Advertisement" during an ad break), for stations that send Shoutcast/Icecast titles.
 - `Ctrl+Space` to stop or play, `Ctrl+M` to mute or unmute, `Ctrl+F` to search.
 - `.pls`, `.m3u` and `.asx` playlists are resolved to the actual stream. HLS (`.m3u8`) is played directly.

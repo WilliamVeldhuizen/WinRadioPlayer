@@ -203,14 +203,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _engine.Play(station);
     }
 
-    public void PlayFavoriteAt(int index)
-    {
-        if (index >= 0 && index < Favorites.Count)
-        {
-            Play(Favorites[index].Station);
-        }
-    }
-
     [RelayCommand]
     private void TogglePlayback()
     {

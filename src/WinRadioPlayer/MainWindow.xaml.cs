@@ -36,13 +36,6 @@ public sealed partial class MainWindow : Window
 
     private void AddKeyboardShortcuts()
     {
-        // Ctrl+1 … Ctrl+9, Ctrl+0 switch to favorite 1 … 10.
-        for (var i = 0; i < 10; i++)
-        {
-            var index = i;
-            AddShortcut(i == 9 ? VirtualKey.Number0 : VirtualKey.Number1 + i, () => ViewModel.PlayFavoriteAt(index));
-        }
-
         AddShortcut(VirtualKey.Space, () => ViewModel.TogglePlaybackCommand.Execute(null));
         AddShortcut(VirtualKey.M, () => ViewModel.ToggleMuteCommand.Execute(null));
         AddShortcut(VirtualKey.F,() => SearchBox.Focus(FocusState.Keyboard));
