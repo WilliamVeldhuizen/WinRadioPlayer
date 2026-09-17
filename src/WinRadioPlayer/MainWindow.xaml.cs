@@ -3,8 +3,10 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.Graphics;
 using Windows.System;
+using WinRadioPlayer.Core.Models;
 using WinRadioPlayer.ViewModels;
 
 namespace WinRadioPlayer;
@@ -49,8 +51,16 @@ public sealed partial class MainWindow : Window
     {
         AddShortcut(VirtualKey.Space, () => ViewModel.TogglePlaybackCommand.Execute(null));
         AddShortcut(VirtualKey.M, () => ViewModel.ToggleMuteCommand.Execute(null));
-        AddShortcut(VirtualKey.F,() => SearchBox.Focus(FocusState.Keyboard));
+        AddShortcut(VirtualKey.F, () =>
+        {
+            // The search box is on the stations tab; it only accepts focus once that tab is shown.
+            StationsTab.IsSelected = true;
+            DispatcherQueue.TryEnqueue(() => SearchBox.Focus(FocusState.Keyboard));
+        });
     }
+
+    private void Tabs_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args) =>
+        ViewModel.IsShowingFavoriteTracks = sender.SelectedItem == FavoriteTracksTab;
 
     private void AddShortcut(VirtualKey key, Action action)
     {
@@ -131,6 +141,16 @@ public sealed partial class MainWindow : Window
 
     private void ToggleFavorite_Click(object sender, RoutedEventArgs e) =>
         ViewModel.ToggleFavorite(((StationResultViewModel)((FrameworkElement)sender).DataContext).Station);
+
+    private void CopyFavoriteTrack_Click(object sender, RoutedEventArgs e)
+    {
+        var package = new DataPackage();
+        package.SetText(((FavoriteTrack)((FrameworkElement)sender).DataContext).Title);
+        Clipboard.SetContent(package);
+    }
+
+    private void RemoveFavoriteTrack_Click(object sender, RoutedEventArgs e) =>
+        ViewModel.RemoveFavoriteTrack((FavoriteTrack)((FrameworkElement)sender).DataContext);
 
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(nint hwnd);

@@ -11,6 +11,9 @@ public sealed class AppSettings
 
     public List<Station> Favorites { get; set; } = [];
 
+    /// <summary>Songs saved from the station being listened to, newest first.</summary>
+    public List<FavoriteTrack> FavoriteTracks { get; set; } = [];
+
     public double Volume { get; set; } = 0.8;
 
     public string? Country { get; set; }

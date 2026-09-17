@@ -89,6 +89,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Favorites.Add(new FavoriteViewModel(station));
         }
 
+        foreach (var track in _settings.FavoriteTracks)
+        {
+            FavoriteTracks.Add(track);
+        }
+
+        FavoriteTracks.CollectionChanged += OnFavoriteTracksChanged;
         Favorites.CollectionChanged += OnFavoritesChanged;
         SyncFavorites();
     }
@@ -98,6 +104,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public string FavoritesHeader => $"Favorites ({Favorites.Count}/{AppSettings.MaxFavorites})";
 
     public bool HasNoFavorites => Favorites.Count == 0;
+
+    /// <summary>Songs saved with the heart while listening, newest first.</summary>
+    public ObservableCollection<FavoriteTrack> FavoriteTracks { get; } = [];
+
+    public string FavoriteTracksHeader => $"Favorite tracks ({FavoriteTracks.Count})";
+
+    public bool HasNoFavoriteTracks => FavoriteTracks.Count == 0;
+
+    /// <summary>Whether the favorite tracks are shown instead of the station search.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsShowingStations))]
+    public partial bool IsShowingFavoriteTracks { get; set; }
+
+    public bool IsShowingStations => !IsShowingFavoriteTracks;
 
     [ObservableProperty]
     public partial IReadOnlyList<StationResultViewModel> Results { get; set; } = [];
@@ -135,6 +155,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial string NowPlayingSong { get; set; } = "";
 
     public bool HasNowPlayingSong => NowPlayingSong.Length > 0;
+
+    /// <summary>The song the heart saves: the one shown as playing, or null during an ad break.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanSaveNowPlayingTrack))]
+    public partial string? NowPlayingTrack { get; set; }
+
+    public bool CanSaveNowPlayingTrack => NowPlayingTrack is not null;
+
+    [ObservableProperty]
+    public partial bool IsNowPlayingTrackSaved { get; set; }
 
     [ObservableProperty]
     public partial bool IsPlaying { get; set; }
@@ -253,6 +283,27 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     public void RemoveFavorite(FavoriteViewModel favorite) => Favorites.Remove(favorite);
+
+    /// <summary>Saves the song playing right now to the favorite tracks, or removes it when it is already there.</summary>
+    [RelayCommand]
+    private void ToggleNowPlayingTrackSaved()
+    {
+        if (NowPlayingTrack is not { } title || _engine.Active is not { } active)
+        {
+            return;
+        }
+
+        if (FavoriteTracks.FirstOrDefault(t => t.IsSameSong(title)) is { } saved)
+        {
+            FavoriteTracks.Remove(saved);
+        }
+        else
+        {
+            FavoriteTracks.Insert(0, new FavoriteTrack(title, active.Station.Name, DateTimeOffset.Now));
+        }
+    }
+
+    public void RemoveFavoriteTrack(FavoriteTrack track) => FavoriteTracks.Remove(track);
 
     partial void OnSearchTextChanged(string value)
     {
@@ -405,6 +456,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    private void OnFavoriteTracksChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(FavoriteTracksHeader));
+        OnPropertyChanged(nameof(HasNoFavoriteTracks));
+        UpdateNowPlaying();
+        SaveSettings();
+    }
+
     private void SyncFavorites()
     {
         _favoritesSyncPending = false;
@@ -538,6 +597,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             NowPlayingName = _lastPlayed?.Name ?? "Choose a station";
             NowPlayingSong = "";
+            NowPlayingTrack = null;
+            IsNowPlayingTrackSaved = false;
             NowPlayingStatus = _lastPlayed is null ? "Click a favorite to listen live instantly" : "Stopped";
             return;
         }
@@ -545,6 +606,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         NowPlayingName = active.Station.Name;
         var isFavorite = Favorites.Any(f => f.Station.Url == active.Station.Url);
         NowPlayingSong = SongTexts.For(active);
+        NowPlayingTrack = active is { IsInAdBreak: false, Metadata.Title: { } title } ? title : null;
+        IsNowPlayingTrackSaved = NowPlayingTrack is { } track && FavoriteTracks.Any(t => t.IsSameSong(track));
         NowPlayingStatus = StatusTexts.For(active.Status, isActive: true)
                            + (IsMuted ? " · muted" : "")
                            + (isFavorite ? "" : " · not a favorite, stream stops when switching")
@@ -560,6 +623,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private void SaveSettings()
     {
         _settings.Favorites = Favorites.Select(f => f.Station).ToList();
+        _settings.FavoriteTracks = FavoriteTracks.ToList();
         _settings.Volume = _engine.Volume;
         try
         {

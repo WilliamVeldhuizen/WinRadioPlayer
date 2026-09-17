@@ -5,6 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:WinRadioPlayer"
     xmlns:vm="using:WinRadioPlayer.ViewModels"
+    xmlns:models="using:WinRadioPlayer.Core.Models"
     Title="Radio">
 
     <Window.SystemBackdrop>
@@ -146,92 +147,177 @@
                 </Grid>
             </Border>
 
-            <!-- Station search -->
             <Border Grid.Column="1" Style="{StaticResource CardStyle}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <Grid Padding="16,14,16,4" ColumnSpacing="8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="200" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
+                    <SelectorBar x:Name="Tabs" Margin="8,4,8,0" SelectionChanged="Tabs_SelectionChanged">
+                        <SelectorBarItem x:Name="StationsTab" Text="Stations" IsSelected="True">
+                            <SelectorBarItem.Icon>
+                                <FontIcon Glyph="&#xE93E;" />
+                            </SelectorBarItem.Icon>
+                        </SelectorBarItem>
+                        <SelectorBarItem x:Name="FavoriteTracksTab" Text="{x:Bind ViewModel.FavoriteTracksHeader, Mode=OneWay}">
+                            <SelectorBarItem.Icon>
+                                <FontIcon Glyph="&#xE006;" />
+                            </SelectorBarItem.Icon>
+                        </SelectorBarItem>
+                    </SelectorBar>
 
-                        <TextBox
-                            x:Name="SearchBox"
-                            PlaceholderText="Search by name, genre or country (Ctrl+F)"
-                            Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                        <AutoSuggestBox
-                            x:Name="CountryBox"
-                            Grid.Column="1"
-                            PlaceholderText="Country"
-                            AutomationProperties.Name="Country"
-                            QueryIcon="Filter"
-                            Text="{x:Bind ViewModel.SelectedCountry, Mode=OneWay}"
-                            GotFocus="Country_GotFocus"
-                            LostFocus="Country_LostFocus"
-                            TextChanged="Country_TextChanged"
-                            QuerySubmitted="Country_QuerySubmitted" />
-                        <Button
-                            Grid.Column="2"
-                            Style="{StaticResource IconButtonStyle}"
-                            Width="32" Height="32"
-                            ToolTipService.ToolTip="Reload station list"
-                            Command="{x:Bind ViewModel.ReloadCatalogCommand}">
-                            <FontIcon Glyph="&#xE72C;" FontSize="14" />
-                        </Button>
+                    <!-- Station search -->
+                    <Grid Grid.Row="1" Visibility="{x:Bind ViewModel.IsShowingStations, Mode=OneWay}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <Grid Padding="16,8,16,4" ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="200" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBox
+                                x:Name="SearchBox"
+                                PlaceholderText="Search by name, genre or country (Ctrl+F)"
+                                Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            <AutoSuggestBox
+                                x:Name="CountryBox"
+                                Grid.Column="1"
+                                PlaceholderText="Country"
+                                AutomationProperties.Name="Country"
+                                QueryIcon="Filter"
+                                Text="{x:Bind ViewModel.SelectedCountry, Mode=OneWay}"
+                                GotFocus="Country_GotFocus"
+                                LostFocus="Country_LostFocus"
+                                TextChanged="Country_TextChanged"
+                                QuerySubmitted="Country_QuerySubmitted" />
+                            <Button
+                                Grid.Column="2"
+                                Style="{StaticResource IconButtonStyle}"
+                                Width="32" Height="32"
+                                ToolTipService.ToolTip="Reload station list"
+                                Command="{x:Bind ViewModel.ReloadCatalogCommand}">
+                                <FontIcon Glyph="&#xE72C;" FontSize="14" />
+                            </Button>
+                        </Grid>
+
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Padding="16,4,16,4">
+                            <ProgressRing Width="14" Height="14" IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}" Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay}" />
+                            <TextBlock
+                                Text="{x:Bind ViewModel.CatalogStatus, Mode=OneWay}"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+
+                        <ListView
+                            Grid.Row="2"
+                            Padding="0,0,0,8"
+                            ItemsSource="{x:Bind ViewModel.Results, Mode=OneWay}"
+                            SelectionMode="None"
+                            IsItemClickEnabled="True"
+                            ItemClick="Station_ItemClick">
+                            <ListView.ItemTemplate>
+                                <DataTemplate x:DataType="vm:StationResultViewModel">
+                                    <Grid Padding="0,6" ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock
+                                                Text="{x:Bind Subtitle}"
+                                                Style="{StaticResource CaptionTextBlockStyle}"
+                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                        <Button
+                                            Grid.Column="1"
+                                            Style="{StaticResource IconButtonStyle}"
+                                            VerticalAlignment="Center"
+                                            ToolTipService.ToolTip="Toggle favorite"
+                                            Click="ToggleFavorite_Click">
+                                            <FontIcon
+                                                FontSize="16"
+                                                Glyph="{x:Bind local:UiHelpers.StarGlyph(IsFavorite), Mode=OneWay}"
+                                                Foreground="{x:Bind local:UiHelpers.StarBrush(IsFavorite), Mode=OneWay}" />
+                                        </Button>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
                     </Grid>
 
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Padding="16,4,16,4">
-                        <ProgressRing Width="14" Height="14" IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}" Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay}" />
-                        <TextBlock
-                            Text="{x:Bind ViewModel.CatalogStatus, Mode=OneWay}"
-                            Style="{StaticResource CaptionTextBlockStyle}"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    </StackPanel>
+                    <!-- Favorite tracks -->
+                    <Grid Grid.Row="1" Visibility="{x:Bind ViewModel.IsShowingFavoriteTracks, Mode=OneWay}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
 
-                    <ListView
-                        Grid.Row="2"
-                        Padding="0,0,0,8"
-                        ItemsSource="{x:Bind ViewModel.Results, Mode=OneWay}"
-                        SelectionMode="None"
-                        IsItemClickEnabled="True"
-                        ItemClick="Station_ItemClick">
-                        <ListView.ItemTemplate>
-                            <DataTemplate x:DataType="vm:StationResultViewModel">
-                                <Grid Padding="0,6" ColumnSpacing="8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Spacing="2">
-                                        <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
-                                        <TextBlock
-                                            Text="{x:Bind Subtitle}"
-                                            Style="{StaticResource CaptionTextBlockStyle}"
-                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                            TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                    <Button
-                                        Grid.Column="1"
-                                        Style="{StaticResource IconButtonStyle}"
-                                        VerticalAlignment="Center"
-                                        ToolTipService.ToolTip="Toggle favorite"
-                                        Click="ToggleFavorite_Click">
-                                        <FontIcon
-                                            FontSize="16"
-                                            Glyph="{x:Bind local:UiHelpers.StarGlyph(IsFavorite), Mode=OneWay}"
-                                            Foreground="{x:Bind local:UiHelpers.StarBrush(IsFavorite), Mode=OneWay}" />
-                                    </Button>
-                                </Grid>
-                            </DataTemplate>
-                        </ListView.ItemTemplate>
-                    </ListView>
+                        <TextBlock
+                            Padding="16,8,16,8"
+                            Text="Songs you saved with the heart next to the song that is playing. Copy a title to look it up in your music app."
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            TextWrapping="Wrap" />
+
+                        <TextBlock
+                            Grid.Row="1"
+                            Margin="16"
+                            Text="No favorite tracks yet. When a station plays a song you like, click the heart next to the song at the bottom."
+                            TextWrapping="Wrap"
+                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                            Visibility="{x:Bind ViewModel.HasNoFavoriteTracks, Mode=OneWay}" />
+
+                        <ListView
+                            Grid.Row="1"
+                            Padding="0,0,0,8"
+                            ItemsSource="{x:Bind ViewModel.FavoriteTracks}"
+                            SelectionMode="None">
+                            <ListView.ItemTemplate>
+                                <DataTemplate x:DataType="models:FavoriteTrack">
+                                    <Grid Padding="0,6" ColumnSpacing="4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="{x:Bind Title}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Title}" IsTextSelectionEnabled="True" />
+                                            <TextBlock
+                                                Text="{x:Bind Details}"
+                                                Style="{StaticResource CaptionTextBlockStyle}"
+                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                        <Button
+                                            Grid.Column="1"
+                                            Style="{StaticResource IconButtonStyle}"
+                                            VerticalAlignment="Center"
+                                            ToolTipService.ToolTip="Copy title"
+                                            Click="CopyFavoriteTrack_Click">
+                                            <FontIcon Glyph="&#xE8C8;" FontSize="14" />
+                                        </Button>
+                                        <Button
+                                            Grid.Column="2"
+                                            Style="{StaticResource IconButtonStyle}"
+                                            VerticalAlignment="Center"
+                                            ToolTipService.ToolTip="Remove from favorite tracks"
+                                            Click="RemoveFavoriteTrack_Click">
+                                            <FontIcon Glyph="&#xE711;" FontSize="12" />
+                                        </Button>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </Grid>
                 </Grid>
             </Border>
         </Grid>
@@ -247,6 +333,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="180" />
                 </Grid.ColumnDefinitions>
@@ -277,13 +364,27 @@
                     Width="40" Height="40" Padding="0"
                     VerticalAlignment="Center"
                     Background="Transparent" BorderThickness="0"
+                    Visibility="{x:Bind ViewModel.CanSaveNowPlayingTrack, Mode=OneWay}"
+                    ToolTipService.ToolTip="{x:Bind local:UiHelpers.SaveTrackToolTip(ViewModel.IsNowPlayingTrackSaved), Mode=OneWay}"
+                    AutomationProperties.Name="{x:Bind local:UiHelpers.SaveTrackToolTip(ViewModel.IsNowPlayingTrackSaved), Mode=OneWay}"
+                    Command="{x:Bind ViewModel.ToggleNowPlayingTrackSavedCommand}">
+                    <FontIcon
+                        FontSize="16"
+                        Glyph="{x:Bind local:UiHelpers.HeartGlyph(ViewModel.IsNowPlayingTrackSaved), Mode=OneWay}"
+                        Foreground="{x:Bind local:UiHelpers.HeartBrush(ViewModel.IsNowPlayingTrackSaved), Mode=OneWay}" />
+                </Button>
+                <Button
+                    Grid.Column="3"
+                    Width="40" Height="40" Padding="0"
+                    VerticalAlignment="Center"
+                    Background="Transparent" BorderThickness="0"
                     ToolTipService.ToolTip="{x:Bind local:UiHelpers.MuteToolTip(ViewModel.IsMuted), Mode=OneWay}"
                     AutomationProperties.Name="{x:Bind local:UiHelpers.MuteToolTip(ViewModel.IsMuted), Mode=OneWay}"
                     Command="{x:Bind ViewModel.ToggleMuteCommand}">
                     <FontIcon Glyph="{x:Bind local:UiHelpers.MuteGlyph(ViewModel.IsMuted), Mode=OneWay}" FontSize="16" />
                 </Button>
                 <Slider
-                    Grid.Column="3"
+                    Grid.Column="4"
                     VerticalAlignment="Center"
                     Minimum="0" Maximum="100" StepFrequency="1"
                     Value="{x:Bind ViewModel.Volume, Mode=TwoWay}" />
