@@ -27,6 +27,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly AppSettings _settings;
     private readonly StationDirectory _directory;
     private readonly StationPopularity _popularity;
+    private readonly StationLogos _logos;
     private readonly Dictionary<string, IReadOnlyDictionary<string, int>> _popularityByCountry = new(StringComparer.OrdinalIgnoreCase);
     private readonly HttpClient _streamHttp;
     private readonly IcyProxy _proxy;
@@ -41,6 +42,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private Station? _lastPlayed;
     private readonly AdBreakZapper _zapper = new();
     private bool _isFirstRun;
+    private string? _nowPlayingLogoStationUrl;
     private string? _jumpListShown;
     private Task _jumpListUpdates = Task.CompletedTask;
 
@@ -63,6 +65,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _settings = _settingsStore.Load();
         _directory = new StationDirectory(_http, Path.Combine(dataFolder, "cache"));
         _popularity = new StationPopularity(_http, Path.Combine(dataFolder, "cache"));
+        _logos = new StationLogos(_http, Path.Combine(dataFolder, "cache"));
 
         // Streams run for hours, so the relay gets a client without the overall request timeout.
         _streamHttp = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
@@ -90,7 +93,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         foreach (var station in _settings.Favorites.DistinctBy(s => s.Url).Take(AppSettings.MaxFavorites))
         {
-            Favorites.Add(new FavoriteViewModel(station));
+            var favorite = new FavoriteViewModel(station);
+            Favorites.Add(favorite);
+            _ = LoadFavoriteLogoAsync(favorite);
         }
 
         foreach (var track in _settings.FavoriteTracks)
@@ -166,6 +171,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     public partial bool IsErrorOpen { get; set; }
+
+    public StationLogoViewModel NowPlayingLogo { get; } = new();
 
     [ObservableProperty]
     public partial string NowPlayingName { get; set; } = "Choose a station";
@@ -307,10 +314,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        Favorites.Add(new FavoriteViewModel(station));
+        var favorite = new FavoriteViewModel(station);
+        Favorites.Add(favorite);
+        _ = LoadFavoriteLogoAsync(favorite);
     }
 
     public void RemoveFavorite(FavoriteViewModel favorite) => Favorites.Remove(favorite);
+
+    private async Task LoadFavoriteLogoAsync(FavoriteViewModel favorite)
+    {
+        var url = await _logos.GetLogoUrlAsync(favorite.Station);
+        // The favorite might have been removed again while the lookup was running.
+        if (Favorites.Contains(favorite))
+        {
+            favorite.Logo.SetLogoUrl(url);
+        }
+    }
 
     /// <summary>Saves the song playing right now to the favorite tracks, or removes it when it is already there.</summary>
     [RelayCommand]
@@ -648,6 +667,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         IsPlaying = active is not null;
+        UpdateNowPlayingLogo(active?.Station ?? _lastPlayed);
         if (active is null)
         {
             NowPlayingName = _lastPlayed?.Name ?? "Choose a station";
@@ -667,6 +687,36 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                            + (IsMuted ? " · muted" : "")
                            + (isFavorite ? "" : " · not a favorite, stream stops when switching")
                            + (active.Status is StreamStatus.Reconnecting or StreamStatus.Failed && active.LastError is { } error ? $" ({error})" : "");
+    }
+
+    /// <summary>Resets and (re)loads the now-playing logo when the displayed station changes.</summary>
+    private void UpdateNowPlayingLogo(Station? station)
+    {
+        if (station is null)
+        {
+            _nowPlayingLogoStationUrl = null;
+            NowPlayingLogo.Reset("");
+            return;
+        }
+
+        if (_nowPlayingLogoStationUrl == station.Url)
+        {
+            return;
+        }
+
+        _nowPlayingLogoStationUrl = station.Url;
+        NowPlayingLogo.Reset(station.Name);
+        _ = LoadNowPlayingLogoAsync(station);
+    }
+
+    private async Task LoadNowPlayingLogoAsync(Station station)
+    {
+        var url = await _logos.GetLogoUrlAsync(station);
+        // Only apply it if this is still the displayed station once the lookup completes.
+        if (_nowPlayingLogoStationUrl == station.Url)
+        {
+            NowPlayingLogo.SetLogoUrl(url);
+        }
     }
 
     private void ShowError(string message)

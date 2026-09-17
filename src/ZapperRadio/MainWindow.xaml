@@ -102,6 +102,7 @@
                                 <Grid Padding="0,8" ColumnSpacing="10">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="3" />
+                                        <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
@@ -111,7 +112,23 @@
                                         Fill="{ThemeResource AccentFillColorDefaultBrush}"
                                         Visibility="{x:Bind IsActive, Mode=OneWay}" />
 
-                                    <StackPanel Grid.Column="1" Spacing="2">
+                                    <Grid Grid.Column="1" Width="32" Height="32" Margin="0,2,0,0" VerticalAlignment="Top">
+                                        <Ellipse Fill="{ThemeResource AccentFillColorDefaultBrush}" Visibility="{x:Bind Logo.ShowFallback, Mode=OneWay}" />
+                                        <TextBlock
+                                            Text="{x:Bind Logo.Initials, Mode=OneWay}"
+                                            FontSize="12" FontWeight="SemiBold"
+                                            Foreground="White"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            Visibility="{x:Bind Logo.ShowFallback, Mode=OneWay}" />
+                                        <Image
+                                            Source="{x:Bind Logo.Source, Mode=OneWay}"
+                                            Stretch="UniformToFill"
+                                            Visibility="{x:Bind Logo.HasLogo, Mode=OneWay}"
+                                            ImageOpened="FavoriteLogo_ImageOpened"
+                                            ImageFailed="FavoriteLogo_ImageFailed" />
+                                    </Grid>
+
+                                    <StackPanel Grid.Column="2" Spacing="2">
                                         <TextBlock Text="{x:Bind Name}" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" />
                                         <StackPanel Orientation="Horizontal" Spacing="6" Visibility="{x:Bind HasSong, Mode=OneWay}">
                                             <FontIcon Glyph="&#xE8D6;" FontSize="11" VerticalAlignment="Center" Foreground="{x:Bind local:UiHelpers.SongBrush(IsAd, IsAssumedAdBreak), Mode=OneWay}" />
@@ -133,7 +150,7 @@
                                     </StackPanel>
 
                                     <Button
-                                        Grid.Column="2"
+                                        Grid.Column="3"
                                         Style="{StaticResource IconButtonStyle}"
                                         VerticalAlignment="Center"
                                         ToolTipService.ToolTip="Remove from favorites"
@@ -332,6 +349,7 @@
             <Grid ColumnSpacing="16">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="180" />
@@ -345,7 +363,23 @@
                     <FontIcon Glyph="{x:Bind local:UiHelpers.PlayGlyph(ViewModel.IsPlaying), Mode=OneWay}" FontSize="18" />
                 </Button>
 
-                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                <Grid Grid.Column="1" Width="40" Height="40" VerticalAlignment="Center">
+                    <Ellipse Fill="{ThemeResource AccentFillColorDefaultBrush}" Visibility="{x:Bind ViewModel.NowPlayingLogo.ShowFallback, Mode=OneWay}" />
+                    <TextBlock
+                        Text="{x:Bind ViewModel.NowPlayingLogo.Initials, Mode=OneWay}"
+                        FontSize="14" FontWeight="SemiBold"
+                        Foreground="White"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                        Visibility="{x:Bind ViewModel.NowPlayingLogo.ShowFallback, Mode=OneWay}" />
+                    <Image
+                        Source="{x:Bind ViewModel.NowPlayingLogo.Source, Mode=OneWay}"
+                        Stretch="UniformToFill"
+                        Visibility="{x:Bind ViewModel.NowPlayingLogo.HasLogo, Mode=OneWay}"
+                        ImageOpened="NowPlayingLogo_ImageOpened"
+                        ImageFailed="NowPlayingLogo_ImageFailed" />
+                </Grid>
+
+                <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
                     <TextBlock Text="{x:Bind ViewModel.NowPlayingName, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" />
                     <Grid ColumnSpacing="6" Visibility="{x:Bind ViewModel.HasNowPlayingSong, Mode=OneWay}">
                         <Grid.ColumnDefinitions>
@@ -384,7 +418,7 @@
                 </StackPanel>
 
                 <Button
-                    Grid.Column="2"
+                    Grid.Column="3"
                     Width="40" Height="40" Padding="0"
                     VerticalAlignment="Center"
                     Background="Transparent" BorderThickness="0"
@@ -394,7 +428,7 @@
                     <FontIcon Glyph="{x:Bind local:UiHelpers.MuteGlyph(ViewModel.IsMuted), Mode=OneWay}" FontSize="16" />
                 </Button>
                 <Slider
-                    Grid.Column="3"
+                    Grid.Column="4"
                     VerticalAlignment="Center"
                     Minimum="0" Maximum="100" StepFrequency="1"
                     Value="{x:Bind ViewModel.Volume, Mode=TwoWay}" />

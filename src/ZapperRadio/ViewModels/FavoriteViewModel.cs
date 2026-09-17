@@ -9,6 +9,8 @@ public sealed partial class FavoriteViewModel(Station station) : ObservableObjec
 {
     public Station Station { get; } = station;
 
+    public StationLogoViewModel Logo { get; } = new() { Initials = StationLogoViewModel.ComputeInitials(station.Name) };
+
     public string Name => Station.Name;
 
     public string Subtitle => Station.Subtitle;

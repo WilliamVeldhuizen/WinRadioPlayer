@@ -136,6 +136,16 @@ public sealed partial class MainWindow : Window
         });
     }
 
+    private void FavoriteLogo_ImageOpened(object sender, RoutedEventArgs e) =>
+        ((FavoriteViewModel)((FrameworkElement)sender).DataContext).Logo.OnImageOpened();
+
+    private void FavoriteLogo_ImageFailed(object sender, ExceptionRoutedEventArgs e) =>
+        ((FavoriteViewModel)((FrameworkElement)sender).DataContext).Logo.OnImageFailed();
+
+    private void NowPlayingLogo_ImageOpened(object sender, RoutedEventArgs e) => ViewModel.NowPlayingLogo.OnImageOpened();
+
+    private void NowPlayingLogo_ImageFailed(object sender, ExceptionRoutedEventArgs e) => ViewModel.NowPlayingLogo.OnImageFailed();
+
     private void RemoveFavorite_Click(object sender, RoutedEventArgs e) =>
         ViewModel.RemoveFavorite((FavoriteViewModel)((FrameworkElement)sender).DataContext);
 

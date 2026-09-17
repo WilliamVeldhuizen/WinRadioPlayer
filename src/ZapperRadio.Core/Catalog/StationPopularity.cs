@@ -60,19 +60,20 @@ public sealed class StationPopularity(HttpClient http, string cacheFolder, IRead
             : new Dictionary<string, int>();
     }
 
+    public static string BuildQuery(string country) =>
+        $"json/stations/search?{CountryFilter(country)}&order=clickcount&reverse=true&hidebroken=true&limit={Limit}";
+
     /// <summary>
-    /// radio-browser spells countries differently ("The Netherlands"), so prefer the ISO code.
-    /// Unknown names fall back to radio-browser's substring match on the country name.
+    /// The radio-browser query parameter for a country as used in the station list. radio-browser spells
+    /// countries differently ("The Netherlands"), so prefer the ISO code. Unknown names fall back to
+    /// radio-browser's substring match on the country name.
     /// </summary>
-    public static string BuildQuery(string country)
-    {
-        var filter = CountryCodes.Value.TryGetValue(country, out var code)
+    public static string CountryFilter(string country) =>
+        CountryCodes.Value.TryGetValue(country, out var code)
             ? $"countrycode={code}"
             : country is [>= 'A' and <= 'Z', >= 'A' and <= 'Z'] // Some entries already are an ISO code.
             ? $"countrycode={country}"
             : $"country={Uri.EscapeDataString(country)}";
-        return $"json/stations/search?{filter}&order=clickcount&reverse=true&hidebroken=true&limit={Limit}";
-    }
 
     /// <summary>Finds the country in the station list with the given ISO code (e.g. "NL"), or null if it is not there.</summary>
     public static string? FindCountry(IEnumerable<string> countries, string isoCode) =>
