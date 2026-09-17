@@ -6,7 +6,7 @@
 <Project Sdk="WixToolset.Sdk/6.0.2">
 
   <PropertyGroup>
-    <ProductVersion Condition="'$(ProductVersion)' == ''">1.1.0</ProductVersion>
+    <ProductVersion Condition="'$(ProductVersion)' == ''">1.0.2</ProductVersion>
     <Platform Condition="'$(Platform)' == '' Or '$(Platform)' == 'AnyCPU'">x64</Platform>
     <OutputName>WinRadioPlayer-$(ProductVersion)-$(Platform)</OutputName>
     <Cultures>en-US</Cultures>

@@ -14,6 +14,9 @@ public sealed class AppSettings
     public double Volume { get; set; } = 0.8;
 
     public string? Country { get; set; }
+
+    /// <summary>Switch to another favorite when the station being listened to starts an ad break.</summary>
+    public bool SkipAdBreaks { get; set; }
 }
 
 public sealed class SettingsStore(string path)

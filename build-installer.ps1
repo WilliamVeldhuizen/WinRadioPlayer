@@ -9,7 +9,7 @@
     .\build-installer.ps1 -Version 1.1.0 -Arch arm64
 #>
 param(
-    [string] $Version = '1.1.0',
+    [string] $Version = '1.0.2',
     [ValidateSet('x64', 'arm64')]
     [string] $Arch = 'x64'
 )

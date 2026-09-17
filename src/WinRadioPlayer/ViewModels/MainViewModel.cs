@@ -37,6 +37,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? _searchCts;
     private bool _favoritesSyncPending;
     private Station? _lastPlayed;
+    private StationStream? _chosenDuringAd;
     private bool _isFirstRun;
     private string? _jumpListShown;
     private Task _jumpListUpdates = Task.CompletedTask;
@@ -81,6 +82,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         Volume = _engine.Volume * 100;
         SelectedCountry = _settings.Country ?? AllCountries;
+        SkipAdBreaks = _settings.SkipAdBreaks;
 
         foreach (var station in _settings.Favorites.DistinctBy(s => s.Url).Take(AppSettings.MaxFavorites))
         {
@@ -142,6 +144,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     public partial bool IsMuted { get; set; }
+
+    /// <summary>When the station being listened to starts an ad break, switch to the highest favorite without one.</summary>
+    [ObservableProperty]
+    public partial bool SkipAdBreaks { get; set; }
 
     public async Task LoadCatalogAsync()
     {
@@ -211,6 +217,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         _lastPlayed = station;
         _engine.Play(station);
+        // Picking a station during its ad break means you want to hear it anyway, so that break is not skipped.
+        _chosenDuringAd = _engine.Active is { Metadata.IsAd: true } active ? active : null;
     }
 
     [RelayCommand]
@@ -300,6 +308,27 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     [RelayCommand]
     private void ToggleMute() => IsMuted = !IsMuted;
+
+    partial void OnSkipAdBreaksChanged(bool value)
+    {
+        _settings.SkipAdBreaks = value;
+        if (value && _engine.Active is { Metadata.IsAd: true } active)
+        {
+            SkipAdBreak(active);
+        }
+    }
+
+    /// <summary>Switches to the highest favorite that is live and not in an ad break, if there is one.</summary>
+    private void SkipAdBreak(StationStream active)
+    {
+        var next = Favorites
+            .Select(f => _engine.Find(f.Station.Url))
+            .FirstOrDefault(s => s is not null && s != active && s.Status == StreamStatus.Live && s.Metadata?.IsAd != true);
+        if (next is not null)
+        {
+            Play(next.Station);
+        }
+    }
 
     private async Task ApplySearchAsync()
     {
@@ -480,9 +509,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ScheduleJumpListUpdate();
         }
 
+        var isAd = stream.Metadata?.IsAd == true;
+        if (stream == _chosenDuringAd && !isAd)
+        {
+            _chosenDuringAd = null;
+        }
+
         if (stream == _engine.Active)
         {
             UpdateNowPlaying();
+            if (isAd && SkipAdBreaks && stream != _chosenDuringAd)
+            {
+                SkipAdBreak(stream);
+            }
         }
     }
 
