@@ -21,7 +21,7 @@
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <Product>WinRadioPlayer</Product>
     <ApplicationIcon>Assets\WinRadioPlayer.ico</ApplicationIcon>
   </PropertyGroup>
