@@ -30,11 +30,11 @@ public static class StatusTexts
 {
     public static string For(StreamStatus status, bool isActive) => status switch
     {
-        StreamStatus.Connecting => "Verbinden…",
-        StreamStatus.Live => isActive ? "Speelt nu" : "Live · gedempt",
-        StreamStatus.Buffering => "Bufferen…",
-        StreamStatus.Reconnecting => "Opnieuw verbinden…",
-        StreamStatus.Failed => "Niet bereikbaar, blijft proberen",
+        StreamStatus.Connecting => "Connecting…",
+        StreamStatus.Live => isActive ? "Now playing" : "Live · muted",
+        StreamStatus.Buffering => "Buffering…",
+        StreamStatus.Reconnecting => "Reconnecting…",
+        StreamStatus.Failed => "Unreachable, still retrying",
         _ => "",
     };
 }

@@ -5,11 +5,11 @@
            Manufacturer="William Veldhuizen"
            Version="$(ProductVersion)"
            UpgradeCode="40DE309A-6536-44DA-AFD3-B272709A370F"
-           Language="1043"
+           Language="1033"
            Scope="perMachine">
 
     <!-- Installing a newer version replaces the old one; settings in %LOCALAPPDATA% are kept. -->
-    <MajorUpgrade DowngradeErrorMessage="Er is al een nieuwere versie van WinRadioPlayer geïnstalleerd." />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of WinRadioPlayer is already installed." />
     <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
 
     <Icon Id="AppIcon" SourceFile="..\src\WinRadioPlayer\Assets\WinRadioPlayer.ico" />
@@ -35,7 +35,7 @@
       <Component Id="StartMenuShortcut">
         <Shortcut Id="AppShortcut"
                   Name="WinRadioPlayer"
-                  Description="Internetradio zonder reclame bij het wisselen van zender"
+                  Description="Internet radio without ads when switching stations"
                   Target="[INSTALLFOLDER]WinRadioPlayer.exe"
                   WorkingDirectory="INSTALLFOLDER"
                   Icon="AppIcon" />
@@ -55,7 +55,7 @@
     <WixVariable Id="WixUIDialogBmp" Value="dialog.bmp" />
     <WixVariable Id="WixUIBannerBmp" Value="banner.bmp" />
 
-    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="WinRadioPlayer starten" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch WinRadioPlayer" />
     <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
     <CustomAction Id="LaunchApplication" DllEntry="WixShellExec" Impersonate="yes" BinaryRef="Wix4UtilCA_$(sys.BUILDARCHSHORT)" />
   </Package>

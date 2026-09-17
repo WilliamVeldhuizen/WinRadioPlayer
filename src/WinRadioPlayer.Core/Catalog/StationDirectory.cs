@@ -39,7 +39,7 @@ public sealed partial class StationDirectory(HttpClient http, string cacheFolder
                                    && !cancellationToken.IsCancellationRequested)
         {
             path = FindNewestCachedFile() ?? throw new StationDirectoryException(
-                $"De zenderlijst kon niet worden opgehaald van {_indexUri} en er is geen lokale kopie. ({ex.Message})", ex);
+                $"Could not download the station list from {_indexUri} and there is no local copy. ({ex.Message})", ex);
             fromCache = true;
         }
 
@@ -56,7 +56,7 @@ public sealed partial class StationDirectory(HttpClient http, string cacheFolder
     {
         var indexHtml = await http.GetStringAsync(_indexUri, cancellationToken);
         var fileName = FindLatestFileName(indexHtml)
-                       ?? throw new StationDirectoryException($"Geen stations-*.rsd bestand gevonden op {_indexUri}.");
+                       ?? throw new StationDirectoryException($"No stations-*.rsd file found at {_indexUri}.");
 
         var target = Path.Combine(cacheFolder, fileName);
         if (!File.Exists(target))

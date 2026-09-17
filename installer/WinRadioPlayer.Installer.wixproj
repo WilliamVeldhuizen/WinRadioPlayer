@@ -9,7 +9,7 @@
     <ProductVersion Condition="'$(ProductVersion)' == ''">1.0.0</ProductVersion>
     <Platform Condition="'$(Platform)' == '' Or '$(Platform)' == 'AnyCPU'">x64</Platform>
     <OutputName>WinRadioPlayer-$(ProductVersion)-$(Platform)</OutputName>
-    <Cultures>nl-NL</Cultures>
+    <Cultures>en-US</Cultures>
     <DefineConstants>ProductVersion=$(ProductVersion);PublishDir=$(PublishDir)</DefineConstants>
     <!-- Nothing to compare against for a fresh product; ICE validation is slow and noisy for harvested files. -->
     <SuppressValidation>true</SuppressValidation>

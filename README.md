@@ -1,26 +1,26 @@
 # WinRadioPlayer
 
-Internetradio voor Windows (.NET 10 + WinUI 3 / Windows App SDK).
+Internet radio for Windows (.NET 10 + WinUI 3 / Windows App SDK).
 
-## Waarom
+## Why
 
-Veel zenders laten reclame horen zodra je verbinding maakt. Bij gewone radiospelers gebeurt dat bij elke wissel van zender.
-Deze speler houdt de streams van je favorieten (maximaal 20) **altijd open en gedempt**. Als je een favoriet aanklikt,
-wordt die stream alleen maar hoorbaar gemaakt. Je zit dan meteen live in het programma, zonder nieuwe verbinding en zonder reclame vooraf.
+Many stations play an ad as soon as you connect. With a regular radio player that happens every time you switch stations.
+This player keeps the streams of your favorites (up to 20) **always open and muted**. When you click a favorite,
+its stream is simply unmuted. You are instantly live in the broadcast, without reconnecting and without a pre-roll ad.
 
-Kost wel bandbreedte: elke favoriet is een doorlopende stream van ongeveer 64 tot 320 kbit/s, dus 20 favorieten zijn samen meestal zo’n 2 à 4 Mbit/s (hooguit ruim 6).
+It does cost bandwidth: each favorite is a continuous stream of roughly 64 to 320 kbit/s, so 20 favorites usually add up to about 2 to 4 Mbit/s (at most a little over 6).
 
-## Functies
+## Features
 
-- Zenderlijst: de nieuwste `stations-yyyy-MM-dd.rsd` van http://rb2rs.freemyip.com/ (~52.000 zenders), lokaal bewaard voor offline gebruik.
-- Zoeken op naam, genre of land, plus een filter per land. `qmusic` vindt ook "Q music".
-- Favorieten toevoegen met de ster, volgorde wijzigen door te slepen, `Ctrl+1` … `Ctrl+0` om te wisselen naar favoriet 1 t/m 10.
-- `Ctrl+Spatie` om te stoppen of af te spelen, `Ctrl+F` om te zoeken.
-- `.pls`, `.m3u` en `.asx` playlists worden omgezet naar de echte stream. HLS (`.m3u8`) wordt direct afgespeeld.
-- Verbroken of vastgelopen streams maken automatisch opnieuw verbinding.
-- Een zender die geen favoriet is, speelt tijdelijk en stopt als je wisselt. Maak je hem favoriet terwijl hij speelt, dan blijft de stream open.
+- Station list: the newest `stations-yyyy-MM-dd.rsd` from http://rb2rs.freemyip.com/ (~52,000 stations), stored locally for offline use.
+- Search by name, genre or country, plus a per-country filter. `qmusic` also finds "Q music".
+- Add favorites with the star, reorder them by dragging, and press `Ctrl+1` … `Ctrl+0` to switch to favorite 1 to 10.
+- `Ctrl+Space` to stop or play, `Ctrl+F` to search.
+- `.pls`, `.m3u` and `.asx` playlists are resolved to the actual stream. HLS (`.m3u8`) is played directly.
+- Dropped or stalled streams reconnect automatically.
+- A station that is not a favorite plays temporarily and stops when you switch. If you make it a favorite while it plays, the stream stays open.
 
-## Bouwen en starten
+## Build and run
 
 ```powershell
 dotnet build
@@ -28,7 +28,7 @@ dotnet run --project src/WinRadioPlayer
 dotnet test
 ```
 
-Instellingen en de zendercache staan in `%LOCALAPPDATA%\WinRadioPlayer`.
+Settings and the station cache are stored in `%LOCALAPPDATA%\WinRadioPlayer`.
 
 ## Installer
 
@@ -37,14 +37,18 @@ Instellingen en de zendercache staan in `%LOCALAPPDATA%\WinRadioPlayer`.
 .\build-installer.ps1 -Version 1.1.0 -Arch arm64
 ```
 
-De MSI (WiX 6) installeert de app in `Program Files\WinRadioPlayer` en maakt een snelkoppeling in het startmenu.
-.NET en de Windows App SDK zitten erin, dus op de doel-pc hoeft niets anders geïnstalleerd te zijn.
-Een MSI met een hoger `-Version` vervangt de oude installatie. Je favorieten blijven daarbij behouden.
-De MSI is niet digitaal ondertekend, dus Windows SmartScreen kan bij de eerste keer om bevestiging vragen.
+The MSI (WiX 6) installs the app in `Program Files\WinRadioPlayer` and adds a Start menu shortcut.
+.NET and the Windows App SDK are included, so nothing else needs to be installed on the target PC.
+An MSI with a higher `-Version` replaces the old installation. Your favorites are kept.
+The MSI is not digitally signed, so Windows SmartScreen may ask for confirmation the first time.
 
-## Structuur
+## Structure
 
-- `src/WinRadioPlayer.Core`: ophalen en parsen van de zenderlijst, zoeken, playlists omzetten en instellingen. Geen UI, volledig getest.
-- `src/WinRadioPlayer`: WinUI-app. `Playback/RadioEngine` beheert de gedempte streams, `Playback/StationStream` is één `MediaPlayer` met herverbindlogica.
-- `tests/WinRadioPlayer.Core.Tests`: xUnit-tests.
-- `installer`: WiX-project voor de MSI (niet in de solution, bouwen via `build-installer.ps1`).
+- `src/WinRadioPlayer.Core`: downloading and parsing the station list, search, playlist resolving and settings. No UI, fully tested.
+- `src/WinRadioPlayer`: WinUI app. `Playback/RadioEngine` manages the muted streams, `Playback/StationStream` is a single `MediaPlayer` with reconnect logic.
+- `tests/WinRadioPlayer.Core.Tests`: xUnit tests.
+- `installer`: WiX project for the MSI (not in the solution, build it with `build-installer.ps1`).
+
+## License
+
+[MIT](LICENSE). The station list and popularity data are downloaded at runtime from rb2rs and [radio-browser.info](https://www.radio-browser.info/) and are not part of this repository.

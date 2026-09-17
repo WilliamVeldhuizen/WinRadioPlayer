@@ -14,9 +14,9 @@ namespace WinRadioPlayer.ViewModels;
 
 public sealed partial class MainViewModel : ObservableObject, IDisposable
 {
-    public const string AllCountries = "Alle landen";
+    public const string AllCountries = "All countries";
 
-    private static readonly System.Globalization.CultureInfo DutchCulture = new("nl-NL");
+    private static readonly System.Globalization.CultureInfo EnglishCulture = new("en-US");
 
     private readonly DispatcherQueue _dispatcher;
     private readonly HttpClient _http;
@@ -69,7 +69,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<FavoriteViewModel> Favorites { get; } = [];
 
-    public string FavoritesHeader => $"Favorieten ({Favorites.Count}/{AppSettings.MaxFavorites})";
+    public string FavoritesHeader => $"Favorites ({Favorites.Count}/{AppSettings.MaxFavorites})";
 
     public bool HasNoFavorites => Favorites.Count == 0;
 
@@ -98,10 +98,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial bool IsErrorOpen { get; set; }
 
     [ObservableProperty]
-    public partial string NowPlayingName { get; set; } = "Kies een zender";
+    public partial string NowPlayingName { get; set; } = "Choose a station";
 
     [ObservableProperty]
-    public partial string NowPlayingStatus { get; set; } = "Klik op een favoriet om direct live te luisteren";
+    public partial string NowPlayingStatus { get; set; } = "Click a favorite to listen live instantly";
 
     [ObservableProperty]
     public partial bool IsPlaying { get; set; }
@@ -117,7 +117,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         IsLoading = true;
-        CatalogStatus = "Zenderlijst ophalen…";
+        CatalogStatus = "Loading station list…";
         try
         {
             var catalog = await _directory.LoadAsync();
@@ -147,13 +147,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             // Replacing the ComboBox items clears its selection, even if the value itself did not change.
             OnPropertyChanged(nameof(SelectedCountry));
 
-            var date = catalog.GeneratedAt?.ToString("d MMMM yyyy", DutchCulture) ?? catalog.FileName;
-            CatalogStatus = $"{_allStations.Count:N0} zenders · lijst van {date}" + (catalog.FromCache ? " (offline kopie)" : "");
+            var date = catalog.GeneratedAt?.ToString("MMMM d, yyyy", EnglishCulture) ?? catalog.FileName;
+            CatalogStatus = $"{_allStations.Count:N0} stations · list from {date}" + (catalog.FromCache ? " (offline copy)" : "");
             await ApplySearchAsync();
         }
         catch (Exception ex)
         {
-            CatalogStatus = "Zenderlijst niet beschikbaar";
+            CatalogStatus = "Station list unavailable";
             ShowError(ex.Message);
         }
         finally
@@ -203,7 +203,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         if (Favorites.Count >= AppSettings.MaxFavorites)
         {
-            ShowError($"Je kunt maximaal {AppSettings.MaxFavorites} favorieten hebben, omdat ze allemaal op de achtergrond doorspelen. Verwijder er eerst een.");
+            ShowError($"You can have at most {AppSettings.MaxFavorites} favorites, because they all keep streaming in the background. Remove one first.");
             return;
         }
 
@@ -321,15 +321,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IsPlaying = active is not null;
         if (active is null)
         {
-            NowPlayingName = _lastPlayed?.Name ?? "Kies een zender";
-            NowPlayingStatus = _lastPlayed is null ? "Klik op een favoriet om direct live te luisteren" : "Gestopt";
+            NowPlayingName = _lastPlayed?.Name ?? "Choose a station";
+            NowPlayingStatus = _lastPlayed is null ? "Click a favorite to listen live instantly" : "Stopped";
             return;
         }
 
         NowPlayingName = active.Station.Name;
         var isFavorite = Favorites.Any(f => f.Station.Url == active.Station.Url);
         NowPlayingStatus = StatusTexts.For(active.Status, isActive: true)
-                           + (isFavorite ? "" : " · geen favoriet, stream stopt bij wisselen")
+                           + (isFavorite ? "" : " · not a favorite, stream stops when switching")
                            + (active.Status is StreamStatus.Reconnecting or StreamStatus.Failed && active.LastError is { } error ? $" ({error})" : "");
     }
 
@@ -349,7 +349,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            ShowError($"Instellingen opslaan mislukt: {ex.Message}");
+            ShowError($"Could not save settings: {ex.Message}");
         }
     }
 

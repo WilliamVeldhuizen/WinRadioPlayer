@@ -43,7 +43,7 @@ public sealed partial class StreamUrlResolver(HttpClient http)
             url = entries
                       .Select(e => Uri.TryCreate(url, e, out var u) ? u : null)
                       .FirstOrDefault(u => u is not null && (u.Scheme == Uri.UriSchemeHttp || u.Scheme == Uri.UriSchemeHttps))
-                  ?? throw new InvalidDataException($"Playlist {url} bevat geen bruikbare stream.");
+                  ?? throw new InvalidDataException($"Playlist {url} contains no usable stream.");
         }
 
         return url;

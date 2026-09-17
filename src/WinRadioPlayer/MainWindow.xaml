@@ -67,7 +67,7 @@
                     <StackPanel Padding="16,14,16,8" Spacing="2">
                         <TextBlock Text="{x:Bind ViewModel.FavoritesHeader, Mode=OneWay}" Style="{StaticResource SubtitleTextBlockStyle}" />
                         <TextBlock
-                            Text="Favorieten spelen gedempt door op de achtergrond. Wisselen is dus direct live, zonder opnieuw te verbinden en zonder reclame vooraf."
+                            Text="Favorites keep playing muted in the background, so switching is instantly live: no reconnecting and no ads first."
                             Style="{StaticResource CaptionTextBlockStyle}"
                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                             TextWrapping="Wrap" />
@@ -76,7 +76,7 @@
                     <TextBlock
                         Grid.Row="1"
                         Margin="16"
-                        Text="Nog geen favorieten. Zoek rechts een zender en klik op de ster."
+                        Text="No favorites yet. Find a station on the right and click the star."
                         TextWrapping="Wrap"
                         Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                         Visibility="{x:Bind ViewModel.HasNoFavorites, Mode=OneWay}" />
@@ -126,7 +126,7 @@
                                         Grid.Column="2"
                                         Style="{StaticResource IconButtonStyle}"
                                         VerticalAlignment="Center"
-                                        ToolTipService.ToolTip="Verwijderen uit favorieten"
+                                        ToolTipService.ToolTip="Remove from favorites"
                                         Click="RemoveFavorite_Click">
                                         <FontIcon Glyph="&#xE711;" FontSize="12" />
                                     </Button>
@@ -155,7 +155,7 @@
 
                         <TextBox
                             x:Name="SearchBox"
-                            PlaceholderText="Zoek op naam, genre of land (Ctrl+F)"
+                            PlaceholderText="Search by name, genre or country (Ctrl+F)"
                             Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                         <ComboBox
                             Grid.Column="1"
@@ -167,7 +167,7 @@
                             Grid.Column="2"
                             Style="{StaticResource IconButtonStyle}"
                             Width="32" Height="32"
-                            ToolTipService.ToolTip="Zenderlijst opnieuw ophalen"
+                            ToolTipService.ToolTip="Reload station list"
                             Command="{x:Bind ViewModel.ReloadCatalogCommand}">
                             <FontIcon Glyph="&#xE72C;" FontSize="14" />
                         </Button>
@@ -207,7 +207,7 @@
                                         Grid.Column="1"
                                         Style="{StaticResource IconButtonStyle}"
                                         VerticalAlignment="Center"
-                                        ToolTipService.ToolTip="Favoriet aan/uit"
+                                        ToolTipService.ToolTip="Toggle favorite"
                                         Click="ToggleFavorite_Click">
                                         <FontIcon
                                             FontSize="16"
@@ -240,7 +240,7 @@
                 <Button
                     Style="{StaticResource AccentButtonStyle}"
                     Width="48" Height="48" CornerRadius="24" Padding="0"
-                    ToolTipService.ToolTip="Afspelen / stoppen (Ctrl+Spatie)"
+                    ToolTipService.ToolTip="Play / stop (Ctrl+Space)"
                     Command="{x:Bind ViewModel.TogglePlaybackCommand}">
                     <FontIcon Glyph="{x:Bind local:UiHelpers.PlayGlyph(ViewModel.IsPlaying), Mode=OneWay}" FontSize="18" />
                 </Button>
