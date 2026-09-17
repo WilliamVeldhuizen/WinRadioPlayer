@@ -21,9 +21,6 @@ public sealed partial class FavoriteViewModel(Station station) : ObservableObjec
     [NotifyPropertyChangedFor(nameof(StatusText))]
     public partial StreamStatus Status { get; set; } = StreamStatus.Connecting;
 
-    [ObservableProperty]
-    public partial string ShortcutText { get; set; } = "";
-
     /// <summary>The song the station is playing right now, or empty when it does not say.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSong))]

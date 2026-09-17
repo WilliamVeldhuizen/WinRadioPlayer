@@ -34,6 +34,17 @@ public sealed partial class MainWindow : Window
 
     public MainViewModel ViewModel { get; }
 
+    public void BringToFront()
+    {
+        if (AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter { State: Microsoft.UI.Windowing.OverlappedPresenterState.Minimized } presenter)
+        {
+            presenter.Restore();
+        }
+
+        Activate();
+        SetForegroundWindow(WinRT.Interop.WindowNative.GetWindowHandle(this));
+    }
+
     private void AddKeyboardShortcuts()
     {
         AddShortcut(VirtualKey.Space, () => ViewModel.TogglePlaybackCommand.Execute(null));
@@ -123,4 +134,7 @@ public sealed partial class MainWindow : Window
 
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(nint hwnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(nint hwnd);
 }

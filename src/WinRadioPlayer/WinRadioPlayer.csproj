@@ -17,6 +17,8 @@
     <!-- Without this, dotnet publish leaves out WinRadioPlayer.pri and the compiled .xbf XAML, and the app crashes on start. -->
     <EnableMsixTooling>true</EnableMsixTooling>
     <SelfContained>false</SelfContained>
+    <!-- Program.cs starts the app itself, to pass jump list clicks on to the instance already running. -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <Version>1.0.0</Version>

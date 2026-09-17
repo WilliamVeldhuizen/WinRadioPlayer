@@ -7,8 +7,10 @@ using Microsoft.UI.Dispatching;
 using WinRadioPlayer.Core.Catalog;
 using WinRadioPlayer.Core.Models;
 using WinRadioPlayer.Core.Settings;
+using WinRadioPlayer.Core.Shell;
 using WinRadioPlayer.Core.Streaming;
 using WinRadioPlayer.Playback;
+using WinRadioPlayer.Shell;
 
 namespace WinRadioPlayer.ViewModels;
 
@@ -29,12 +31,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly IcyProxy _proxy;
     private readonly RadioEngine _engine;
     private readonly DispatcherQueueTimer _searchDebounce;
+    private readonly DispatcherQueueTimer _jumpListTimer;
 
     private List<StationResultViewModel> _allStations = [];
     private CancellationTokenSource? _searchCts;
     private bool _favoritesSyncPending;
     private Station? _lastPlayed;
     private bool _isFirstRun;
+    private string? _jumpListShown;
+    private Task _jumpListUpdates = Task.CompletedTask;
 
     public MainViewModel(DispatcherQueue dispatcher)
     {
@@ -68,6 +73,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _searchDebounce.Interval = TimeSpan.FromMilliseconds(250);
         _searchDebounce.IsRepeating = false;
         _searchDebounce.Tick += (_, _) => _ = ApplySearchAsync();
+
+        _jumpListTimer = dispatcher.CreateTimer();
+        _jumpListTimer.Interval = TimeSpan.FromSeconds(1);
+        _jumpListTimer.IsRepeating = false;
+        _jumpListTimer.Tick += (_, _) => UpdateJumpList(withSongs: true);
 
         Volume = _engine.Volume * 100;
         SelectedCountry = _settings.Country ?? AllCountries;
@@ -285,6 +295,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         _engine.IsMuted = value;
         UpdateNowPlaying();
+        ScheduleJumpListUpdate();
     }
 
     [RelayCommand]
@@ -370,10 +381,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _favoritesSyncPending = false;
         _engine.SetFavorites(Favorites.Select(f => f.Station));
 
-        for (var i = 0; i < Favorites.Count; i++)
+        foreach (var favorite in Favorites)
         {
-            var favorite = Favorites[i];
-            favorite.ShortcutText = i < 10 ? $"Ctrl+{(i + 1) % 10}" : "";
             if (_engine.Find(favorite.Station.Url) is { } stream)
             {
                 favorite.Status = stream.Status;
@@ -383,7 +392,62 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         RefreshFavoriteMarks();
         UpdateNowPlaying();
+        ScheduleJumpListUpdate();
         SaveSettings();
+    }
+
+    /// <summary>Carries out a jump list item clicked while the app runs, or the one it was started with.</summary>
+    public void Execute(JumpListCommand command)
+    {
+        switch (command.Action)
+        {
+            case JumpListAction.Play when Favorites.FirstOrDefault(f => f.Station.Url == command.Url) is { } favorite:
+                Play(favorite.Station);
+                break;
+            case JumpListAction.Mute:
+                IsMuted = true;
+                break;
+            case JumpListAction.Unmute:
+                IsMuted = false;
+                break;
+        }
+    }
+
+    private void ScheduleJumpListUpdate()
+    {
+        // At most one update per interval, because songs change often across many favorites.
+        if (!_jumpListTimer.IsRunning)
+        {
+            _jumpListTimer.Start();
+        }
+    }
+
+    private void UpdateJumpList(bool withSongs)
+    {
+        var favorites = Favorites
+            .Select(f => new JumpListItem(
+                JumpListCommand.Title(f.Name, withSongs ? f.Song : ""),
+                withSongs && f.HasSong ? $"Listen to {f.Name}\n{f.Song}" : $"Listen to {f.Name}",
+                JumpListCommand.Play(f.Station.Url)))
+            .ToList();
+        var muted = withSongs && IsMuted;
+        var muteTask = new JumpListItem(
+            muted ? "Unmute" : "Mute",
+            muted ? "Hear the station again" : "Silence the station without stopping it",
+            new JumpListCommand(muted ? JumpListAction.Unmute : JumpListAction.Mute),
+            // The speaker icons of the Windows volume mixer: 1 is a speaker, 2 a muted speaker.
+            Path.Combine(Environment.SystemDirectory, "SndVol.exe"),
+            muted ? 1 : 2);
+
+        var key = string.Join("\n", favorites.Append(muteTask));
+        if (key == _jumpListShown)
+        {
+            return;
+        }
+
+        _jumpListShown = key;
+        // In the background and in order, so a slow update never blocks the window or overwrites a newer one.
+        _jumpListUpdates = _jumpListUpdates.ContinueWith(_ => TaskbarJumpList.Update(favorites, muteTask), TaskScheduler.Default);
     }
 
     private void RefreshFavoriteMarks()
@@ -413,6 +477,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         foreach (var favorite in Favorites.Where(f => f.Station.Url == stream.Station.Url))
         {
             favorite.Song = SongTexts.For(stream.Metadata);
+            ScheduleJumpListUpdate();
         }
 
         if (stream == _engine.Active)
@@ -470,6 +535,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         SaveSettings();
+        // Songs and the mute state are outdated once the app is closed.
+        _jumpListTimer.Stop();
+        UpdateJumpList(withSongs: false);
+        _jumpListUpdates.Wait(TimeSpan.FromSeconds(5));
         _searchCts?.Cancel();
         _engine.Dispose();
         _proxy.Dispose();

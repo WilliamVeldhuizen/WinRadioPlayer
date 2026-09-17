@@ -27,6 +27,7 @@ It does cost bandwidth: each favorite is a continuous stream of roughly 64 to 32
 - Add favorites with the star, and reorder them by dragging.
 - Each favorite shows the song it is playing right now (or "Advertisement" during an ad break), for stations that send Shoutcast/Icecast titles.
 - `Ctrl+Space` to stop or play, `Ctrl+M` to mute or unmute, `Ctrl+F` to search.
+- Right-click the taskbar button to switch to a favorite (each shown with its current song) or to mute and unmute, without switching to the window.
 - `.pls`, `.m3u` and `.asx` playlists are resolved to the actual stream. HLS (`.m3u8`) is played directly.
 - Dropped or stalled streams reconnect automatically.
 - A station that is not a favorite plays temporarily and stops when you switch. If you make it a favorite while it plays, the stream stays open.
