@@ -11,10 +11,13 @@ public enum ChannelState
     /// <summary>In an ad break, marked by the station or assumed from an overdue song.</summary>
     Ad,
 
-    /// <summary>Playing, but it is unknown what: no title and no music heard, or a title while someone talks.</summary>
+    /// <summary>Someone talks: a presenter, the news or a talk show. For listening to music only, a break like an ad.</summary>
+    Speech,
+
+    /// <summary>Playing, but it is unknown what: no title and no music or speech heard.</summary>
     Unknown,
 
-    /// <summary>Playing a song: a title that is not an ad while no speech is heard, or music heard.</summary>
+    /// <summary>Playing a song: music heard, or a title that is not an ad while nothing is heard.</summary>
     Song,
 }
 
@@ -22,20 +25,21 @@ public readonly record struct Channel(string Url, ChannelState State)
 {
     /// <summary>
     /// A title alone does not prove that a song is playing: some stations send program names, and presenters talk
-    /// between songs. What the stream sounds like therefore weighs in, and music counts as a song even without a title.
+    /// between songs. What the stream sounds like therefore weighs first, and music counts as a song even without a title.
     /// </summary>
     public static ChannelState StateOf(bool isInAdBreak, bool isLive, bool hasTitle, Sound sound) =>
         isInAdBreak ? ChannelState.Ad
         : !isLive ? ChannelState.Unavailable
-        : sound == Sound.Music || (hasTitle && sound != Sound.Speech) ? ChannelState.Song
+        : sound == Sound.Speech ? ChannelState.Speech
+        : sound == Sound.Music || hasTitle ? ChannelState.Song
         : ChannelState.Unknown;
 }
 
 /// <summary>
-/// Decides when to zap away from an ad break and when to zap back. When the station being listened to starts
-/// an ad break, it zaps to the highest favorite that plays a song (or else the highest one that at least
-/// plays something). As soon as the station zapped away from plays a song again, it zaps back.
-/// Picking a station yourself ends the zapping: that station stays on, even if it is in an ad break right then.
+/// Decides when to zap away from an ad break or speech and when to zap back. When the station being listened to
+/// starts an ad break or someone talks, it zaps to the highest favorite that plays a song (or else the highest one
+/// that at least plays something). As soon as the station zapped away from plays a song again, it zaps back.
+/// Picking a station yourself ends the zapping: that station stays on, even if it is in a break right then.
 /// </summary>
 public sealed class AdBreakZapper
 {
@@ -44,23 +48,23 @@ public sealed class AdBreakZapper
 
     private DateTimeOffset _zappedAt;
 
-    /// <summary>The station an ad break was zapped away from, which is returned to when it plays a song again.</summary>
+    /// <summary>The station a break was zapped away from, which is returned to when it plays a song again.</summary>
     public string? ZappedFrom { get; private set; }
 
-    /// <summary>A station picked during its ad break, whose break is therefore not zapped away from.</summary>
-    public string? KeptDuringAd { get; private set; }
+    /// <summary>A station picked during its ad break or speech, whose break is therefore not zapped away from.</summary>
+    public string? KeptDuringBreak { get; private set; }
 
     /// <summary>Call when you pick a station yourself.</summary>
     public void OnPicked(string url, ChannelState state)
     {
         ZappedFrom = null;
-        KeptDuringAd = state == ChannelState.Ad ? url : null;
+        KeptDuringBreak = IsBreak(state) ? url : null;
     }
 
     public void OnStopped()
     {
         ZappedFrom = null;
-        KeptDuringAd = null;
+        KeptDuringBreak = null;
     }
 
     /// <summary>
@@ -70,9 +74,9 @@ public sealed class AdBreakZapper
     /// <param name="favorites">The favorites in list order; only these can be zapped to, because their streams stay open.</param>
     public string? Next(Channel active, IReadOnlyList<Channel> favorites, DateTimeOffset now)
     {
-        if (KeptDuringAd is { } kept && StateOf(kept, active, favorites) != ChannelState.Ad)
+        if (KeptDuringBreak is { } kept && !IsBreak(StateOf(kept, active, favorites)))
         {
-            KeptDuringAd = null;
+            KeptDuringBreak = null;
         }
 
         if (ZappedFrom is { } origin)
@@ -88,7 +92,7 @@ public sealed class AdBreakZapper
             }
         }
 
-        if (active.State != ChannelState.Ad || active.Url == KeptDuringAd)
+        if (!IsBreak(active.State) || active.Url == KeptDuringBreak)
         {
             return null;
         }
@@ -103,6 +107,8 @@ public sealed class AdBreakZapper
 
         return next;
     }
+
+    private static bool IsBreak(ChannelState state) => state is ChannelState.Ad or ChannelState.Speech;
 
     private static ChannelState StateOf(string url, Channel active, IReadOnlyList<Channel> favorites) =>
         url == active.Url ? active.State : favorites.FirstOrDefault(f => f.Url == url) is { Url: not null } found ? found.State : ChannelState.Unavailable;

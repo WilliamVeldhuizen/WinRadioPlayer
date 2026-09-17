@@ -33,6 +33,14 @@ public sealed partial class FavoriteViewModel(Station station) : ObservableObjec
 
     public bool HasSong => Song.Length > 0;
 
+    /// <summary>Whether the station marks an ad break right now, which is shown in red.</summary>
+    [ObservableProperty]
+    public partial bool IsAd { get; set; }
+
+    /// <summary>Whether an ad break is only assumed, which is shown in yellow.</summary>
+    [ObservableProperty]
+    public partial bool IsAssumedAdBreak { get; set; }
+
     public string StatusText => StatusTexts.For(Status, IsActive, Sound);
 }
 

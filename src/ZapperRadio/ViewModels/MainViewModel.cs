@@ -402,7 +402,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Zaps away from an ad break or back to the station after its break. Runs on every change of any stream,
+    /// Zaps away from an ad break or speech, or back to the station after its break. Runs on every change of any stream,
     /// so it also zaps once another favorite becomes available, when none was at the start of the break.
     /// </summary>
     private void ZapOnAdBreak()
@@ -527,6 +527,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 favorite.Status = stream.Status;
                 favorite.Sound = stream.Sound;
                 favorite.Song = SongTexts.For(stream);
+                favorite.IsAd = stream.Metadata?.IsAd == true;
+                favorite.IsAssumedAdBreak = stream is { Metadata.IsAd: not true, IsAssumedAdBreak: true };
             }
         }
 
@@ -619,6 +621,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         foreach (var favorite in Favorites.Where(f => f.Station.Url == stream.Station.Url))
         {
             favorite.Sound = stream.Sound;
+            favorite.IsAd = stream.Metadata?.IsAd == true;
+            favorite.IsAssumedAdBreak = stream is { Metadata.IsAd: not true, IsAssumedAdBreak: true };
             var song = SongTexts.For(stream);
             if (favorite.Song != song)
             {

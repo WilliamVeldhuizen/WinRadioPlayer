@@ -10,6 +10,8 @@ public class AdBreakZapperTests
 
     private static Channel Ad(string url) => new(url, ChannelState.Ad);
 
+    private static Channel Speech(string url) => new(url, ChannelState.Speech);
+
     private static Channel Unknown(string url) => new(url, ChannelState.Unknown);
 
     private static Channel Unavailable(string url) => new(url, ChannelState.Unavailable);
@@ -65,6 +67,16 @@ public class AdBreakZapperTests
     }
 
     [Fact]
+    public void ZapsAwayFromSpeech_ToMusicOnly_AndBackWhenTheMusicStarts()
+    {
+        var zapper = new AdBreakZapper();
+
+        Assert.Equal("c", zapper.Next(Speech("a"), [Speech("a"), Speech("b"), Song("c")], Now));
+        Assert.Null(zapper.Next(Song("c"), [Speech("a"), Speech("b"), Song("c")], Now.AddMinutes(1)));
+        Assert.Equal("a", zapper.Next(Song("c"), [Song("a"), Speech("b"), Song("c")], Now.AddMinutes(2)));
+    }
+
+    [Fact]
     public void ZapsOnWhenTheNextStationStartsAnAdBreakToo_AndStillReturnsToTheFirst()
     {
         var zapper = new AdBreakZapper();
@@ -108,8 +120,10 @@ public class AdBreakZapperTests
     public void KeepsAStationPickedDuringItsAdBreak_UntilThatBreakIsOver()
     {
         var zapper = new AdBreakZapper();
-        zapper.OnPicked("a", ChannelState.Ad);
+        zapper.OnPicked("a", ChannelState.Speech);
 
+        Assert.Null(zapper.Next(Speech("a"), [Speech("a"), Song("b")], Now));
+        // The news is followed by ads: still the same break.
         Assert.Null(zapper.Next(Ad("a"), [Ad("a"), Song("b")], Now));
         Assert.Null(zapper.Next(Song("a"), [Song("a"), Song("b")], Now.AddMinutes(1)));
         Assert.Equal("b", zapper.Next(Ad("a"), [Ad("a"), Song("b")], Now.AddMinutes(20)));

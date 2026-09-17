@@ -74,9 +74,9 @@
                             TextWrapping="Wrap" />
                         <CheckBox
                             Margin="0,4,0,0"
-                            Content="Zapp on ad breaks"
+                            Content="Zapp on ad breaks / speech"
                             IsChecked="{x:Bind ViewModel.ZappOnAdBreaks, Mode=TwoWay}"
-                            ToolTipService.ToolTip="When the station you are listening to starts an ad break, zap to the highest favorite that is playing a song, and zap back as soon as the break is over. Stations that do not mark their ads are assumed to be in an ad break when a song runs well past its length and speech is heard instead of music." />
+                            ToolTipService.ToolTip="For listening to music only: when the station you are listening to starts an ad break or someone talks, zap to the highest favorite that is playing a song, and zap back as soon as it plays music again. Stations that do not mark their ads are assumed to be in an ad break when a song runs well past its length and speech is heard instead of music." />
                     </StackPanel>
 
                     <TextBlock
@@ -114,11 +114,11 @@
                                     <StackPanel Grid.Column="1" Spacing="2">
                                         <TextBlock Text="{x:Bind Name}" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" />
                                         <StackPanel Orientation="Horizontal" Spacing="6" Visibility="{x:Bind HasSong, Mode=OneWay}">
-                                            <FontIcon Glyph="&#xE8D6;" FontSize="11" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                            <FontIcon Glyph="&#xE8D6;" FontSize="11" VerticalAlignment="Center" Foreground="{x:Bind local:UiHelpers.SongBrush(IsAd, IsAssumedAdBreak), Mode=OneWay}" />
                                             <TextBlock
                                                 Text="{x:Bind Song, Mode=OneWay}"
                                                 Style="{StaticResource CaptionTextBlockStyle}"
-                                                Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                                Foreground="{x:Bind local:UiHelpers.SongBrush(IsAd, IsAssumedAdBreak), Mode=OneWay}"
                                                 TextTrimming="CharacterEllipsis"
                                                 ToolTipService.ToolTip="{x:Bind Song, Mode=OneWay}" />
                                         </StackPanel>

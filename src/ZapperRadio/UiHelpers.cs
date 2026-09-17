@@ -1,4 +1,5 @@
 using Microsoft.UI;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 using ZapperRadio.Playback;
 
@@ -20,6 +21,12 @@ public static class UiHelpers
         StreamStatus.Failed => FailedBrush,
         _ => BusyBrush,
     };
+
+    /// <summary>The accent color for a song, red during an ad break, or yellow when an ad break is only assumed.</summary>
+    public static Brush SongBrush(bool isAd, bool isAssumedAdBreak) =>
+        isAd ? FailedBrush
+        : isAssumedAdBreak ? StarOnBrush
+        : (Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"];
 
     public static string StarGlyph(bool isFavorite) => Glyph(isFavorite ? 0xE735 : 0xE734); // FavoriteStarFill / FavoriteStar
 

@@ -134,7 +134,8 @@ public class SoundHistoryTests
     [InlineData(false, true, true, Sound.Unknown, ChannelState.Song)]
     [InlineData(false, true, false, Sound.Music, ChannelState.Song)]
     // A title while someone talks: a presenter, the news or a program name.
-    [InlineData(false, true, true, Sound.Speech, ChannelState.Unknown)]
+    [InlineData(false, true, true, Sound.Speech, ChannelState.Speech)]
+    [InlineData(false, true, false, Sound.Speech, ChannelState.Speech)]
     [InlineData(false, true, false, Sound.Unknown, ChannelState.Unknown)]
     public void ChannelState_WeighsTheSoundAgainstTheTitle(bool isInAdBreak, bool isLive, bool hasTitle, Sound sound, ChannelState expected)
     {
