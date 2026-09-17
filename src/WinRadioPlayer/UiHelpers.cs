@@ -26,5 +26,9 @@ public static class UiHelpers
 
     public static string PlayGlyph(bool isPlaying) => Glyph(isPlaying ? 0xE71A : 0xE768); // Stop / Play
 
+    public static string MuteGlyph(bool isMuted) => Glyph(isMuted ? 0xE74F : 0xE767); // Mute / Volume
+
+    public static string MuteToolTip(bool isMuted) => isMuted ? "Unmute (Ctrl+M)" : "Mute (Ctrl+M)";
+
     private static string Glyph(int codePoint) => ((char)codePoint).ToString();
 }

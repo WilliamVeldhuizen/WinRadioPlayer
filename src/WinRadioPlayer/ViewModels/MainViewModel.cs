@@ -127,6 +127,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     public partial double Volume { get; set; }
 
+    [ObservableProperty]
+    public partial bool IsMuted { get; set; }
+
     public async Task LoadCatalogAsync()
     {
         if (IsLoading)
@@ -248,7 +251,24 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _ = ApplySearchAsync();
     }
 
-    partial void OnVolumeChanged(double value) => _engine.Volume = Math.Clamp(value / 100, 0, 1);
+    partial void OnVolumeChanged(double value)
+    {
+        _engine.Volume = Math.Clamp(value / 100, 0, 1);
+        // Turning the volume up is a clear sign you want to hear something.
+        if (value > 0)
+        {
+            IsMuted = false;
+        }
+    }
+
+    partial void OnIsMutedChanged(bool value)
+    {
+        _engine.IsMuted = value;
+        UpdateNowPlaying();
+    }
+
+    [RelayCommand]
+    private void ToggleMute() => IsMuted = !IsMuted;
 
     private async Task ApplySearchAsync()
     {
@@ -402,6 +422,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var isFavorite = Favorites.Any(f => f.Station.Url == active.Station.Url);
         NowPlayingSong = SongTexts.For(active.Metadata);
         NowPlayingStatus = StatusTexts.For(active.Status, isActive: true)
+                           + (IsMuted ? " · muted" : "")
                            + (isFavorite ? "" : " · not a favorite, stream stops when switching")
                            + (active.Status is StreamStatus.Reconnecting or StreamStatus.Failed && active.LastError is { } error ? $" ({error})" : "");
     }

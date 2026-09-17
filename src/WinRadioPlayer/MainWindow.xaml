@@ -267,7 +267,16 @@
                         TextTrimming="CharacterEllipsis" />
                 </StackPanel>
 
-                <FontIcon Grid.Column="2" Glyph="&#xE767;" FontSize="16" VerticalAlignment="Center" />
+                <Button
+                    Grid.Column="2"
+                    Width="40" Height="40" Padding="0"
+                    VerticalAlignment="Center"
+                    Background="Transparent" BorderThickness="0"
+                    ToolTipService.ToolTip="{x:Bind local:UiHelpers.MuteToolTip(ViewModel.IsMuted), Mode=OneWay}"
+                    AutomationProperties.Name="{x:Bind local:UiHelpers.MuteToolTip(ViewModel.IsMuted), Mode=OneWay}"
+                    Command="{x:Bind ViewModel.ToggleMuteCommand}">
+                    <FontIcon Glyph="{x:Bind local:UiHelpers.MuteGlyph(ViewModel.IsMuted), Mode=OneWay}" FontSize="16" />
+                </Button>
                 <Slider
                     Grid.Column="3"
                     VerticalAlignment="Center"

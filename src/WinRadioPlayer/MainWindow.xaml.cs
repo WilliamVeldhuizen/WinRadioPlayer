@@ -40,7 +40,8 @@ public sealed partial class MainWindow : Window
         }
 
         AddShortcut(VirtualKey.Space, () => ViewModel.TogglePlaybackCommand.Execute(null));
-        AddShortcut(VirtualKey.F, () => SearchBox.Focus(FocusState.Keyboard));
+        AddShortcut(VirtualKey.M, () => ViewModel.ToggleMuteCommand.Execute(null));
+        AddShortcut(VirtualKey.F,() => SearchBox.Focus(FocusState.Keyboard));
     }
 
     private void AddShortcut(VirtualKey key, Action action)

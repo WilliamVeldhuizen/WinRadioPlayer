@@ -10,8 +10,6 @@ public class StationPopularityTests
     [InlineData("United Kingdom", "countrycode=GB")]
     [InlineData("Turkey", "countrycode=TR")]
     [InlineData("VG", "countrycode=VG")]
-    [InlineData("Turkey", "countrycode=TR")]
-    [InlineData("VG", "countrycode=VG")]
     [InlineData("Atlantis Island", "country=Atlantis%20Island")]
     public void BuildQuery_PrefersCountryCode(string country, string expectedFilter)
     {

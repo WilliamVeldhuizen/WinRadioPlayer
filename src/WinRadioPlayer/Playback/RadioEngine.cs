@@ -14,6 +14,7 @@ public sealed class RadioEngine(StreamUrlResolver resolver, IcyProxy? proxy, Dis
     private readonly Dictionary<string, StationStream> _favorites = new(StringComparer.Ordinal);
     private StationStream? _transient;
     private double _volume = 0.8;
+    private bool _isMuted;
 
     public StationStream? Active { get; private set; }
 
@@ -32,6 +33,20 @@ public sealed class RadioEngine(StreamUrlResolver resolver, IcyProxy? proxy, Dis
             foreach (var stream in AllStreams())
             {
                 stream.Volume = value;
+            }
+        }
+    }
+
+    /// <summary>Silences the station being listened to, also after switching, without stopping it.</summary>
+    public bool IsMuted
+    {
+        get => _isMuted;
+        set
+        {
+            _isMuted = value;
+            if (Active is not null)
+            {
+                Active.IsMuted = value;
             }
         }
     }
@@ -102,7 +117,7 @@ public sealed class RadioEngine(StreamUrlResolver resolver, IcyProxy? proxy, Dis
             _transient = stream;
         }
 
-        stream.IsMuted = false;
+        stream.IsMuted = _isMuted;
         Active = stream;
         ActiveChanged?.Invoke(this, EventArgs.Empty);
     }
