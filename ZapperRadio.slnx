@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ZapperRadio.Core/ZapperRadio.Core.csproj" />
+    <Project Path="src/ZapperRadio/ZapperRadio.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ZapperRadio.Core.Tests/ZapperRadio.Core.Tests.csproj" />
+  </Folder>
+</Solution>

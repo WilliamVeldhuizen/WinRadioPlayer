@@ -1,4 +1,6 @@
-# WinRadioPlayer
+# ZapperRadio
+
+**Instant station switching, no ads when you tune in.**
 
 Internet radio for Windows (.NET 10 + WinUI 3 / Windows App SDK).
 
@@ -6,8 +8,8 @@ Internet radio for Windows (.NET 10 + WinUI 3 / Windows App SDK).
 
 Windows 10 (version 2004) or later:
 
-- [**WinRadioPlayer-x64.msi**](https://github.com/WilliamVeldhuizen/WinRadioPlayer/releases/latest/download/WinRadioPlayer-x64.msi) for most PCs
-- [WinRadioPlayer-arm64.msi](https://github.com/WilliamVeldhuizen/WinRadioPlayer/releases/latest/download/WinRadioPlayer-arm64.msi) for ARM devices (e.g. Snapdragon laptops)
+- [**ZapperRadio-x64.msi**](https://github.com/WilliamVeldhuizen/WinRadioPlayer/releases/latest/download/ZapperRadio-x64.msi) for most PCs
+- [ZapperRadio-arm64.msi](https://github.com/WilliamVeldhuizen/WinRadioPlayer/releases/latest/download/ZapperRadio-arm64.msi) for ARM devices (e.g. Snapdragon laptops)
 
 All versions are on the [Releases](https://github.com/WilliamVeldhuizen/WinRadioPlayer/releases) page. The installer is not digitally signed, so Windows SmartScreen may warn you: choose **More info** → **Run anyway**.
 
@@ -38,31 +40,31 @@ It does cost bandwidth: each favorite is a continuous stream of roughly 64 to 32
 
 ```powershell
 dotnet build
-dotnet run --project src/WinRadioPlayer
+dotnet run --project src/ZapperRadio
 dotnet test
 ```
 
-Settings and the station cache are stored in `%LOCALAPPDATA%\WinRadioPlayer`.
+Settings and the station cache are stored in `%LOCALAPPDATA%\ZapperRadio`. The app used to be called WinRadioPlayer; an existing `%LOCALAPPDATA%\WinRadioPlayer` folder is moved there on first start.
 
 ## Building the installer
 
 ```powershell
-.\build-installer.ps1                         # artifacts\installer\WinRadioPlayer-1.0.0-x64.msi
+.\build-installer.ps1                         # artifacts\installer\ZapperRadio-1.0.0-x64.msi
 .\build-installer.ps1 -Version 1.1.0 -Arch arm64
 ```
 
-The MSI (WiX 6) installs the app in `Program Files\WinRadioPlayer` and adds a Start menu shortcut.
+The MSI (WiX 6) installs the app in `Program Files\ZapperRadio` and adds a Start menu shortcut.
 .NET and the Windows App SDK are included, so nothing else needs to be installed on the target PC.
 An MSI with a higher `-Version` replaces the old installation. Your favorites are kept.
 The MSI is not digitally signed, so Windows SmartScreen may ask for confirmation the first time.
 
-To publish a release, bump `<Version>` in `src/WinRadioPlayer/WinRadioPlayer.csproj` and push to `main`. The [Release workflow](.github/workflows/release.yml) runs on every push. When no release exists yet for that version, it builds the x64 and ARM64 installers and attaches them to a new GitHub release tagged `v<version>`.
+To publish a release, bump `<Version>` in `src/ZapperRadio/ZapperRadio.csproj` and push to `main`. The [Release workflow](.github/workflows/release.yml) runs on every push. When no release exists yet for that version, it builds the x64 and ARM64 installers and attaches them to a new GitHub release tagged `v<version>`.
 
 ## Structure
 
-- `src/WinRadioPlayer.Core`: downloading and parsing the station list, search, playlist resolving, the local relay that reads song titles from the streams and settings. No UI, fully tested.
-- `src/WinRadioPlayer`: WinUI app. `Playback/RadioEngine` manages the muted streams, `Playback/StationStream` is a single `MediaPlayer` with reconnect logic.
-- `tests/WinRadioPlayer.Core.Tests`: xUnit tests.
+- `src/ZapperRadio.Core`: downloading and parsing the station list, search, playlist resolving, the local relay that reads song titles from the streams and settings. No UI, fully tested.
+- `src/ZapperRadio`: WinUI app. `Playback/RadioEngine` manages the muted streams, `Playback/StationStream` is a single `MediaPlayer` with reconnect logic.
+- `tests/ZapperRadio.Core.Tests`: xUnit tests.
 - `installer`: WiX project for the MSI (not in the solution, build it with `build-installer.ps1`).
 
 ## License
