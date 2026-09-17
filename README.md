@@ -24,7 +24,7 @@ It does cost bandwidth: each favorite is a continuous stream of roughly 64 to 32
 ## Features
 
 - Station list: the newest `stations-yyyy-MM-dd.rsd` from http://rb2rs.freemyip.com/ (~52,000 stations), stored locally for offline use.
-- Search by name, genre or country, plus a per-country filter. `qmusic` also finds "Q music".
+- Search by name, genre or country, plus a per-country filter. `qmusic` also finds "Q music". Typos are forgiven (Levenshtein distance): `radoi 538` finds "Radio 538" and `klasiek` finds "NPO Klassiek". Exact matches are listed first.
 - When a country is selected, its most popular stations (by [radio-browser.info](https://www.radio-browser.info/) play count) are listed first.
 - Add favorites with the star, and reorder them by dragging.
 - Each favorite shows the song it is playing right now (or "Advertisement" during an ad break), for stations that send Shoutcast/Icecast titles.

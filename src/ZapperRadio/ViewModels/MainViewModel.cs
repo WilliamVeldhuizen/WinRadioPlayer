@@ -421,14 +421,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 ? source
                 : await Task.Run(() =>
                 {
-                    var matches = source.Where(s => filter.Matches(s.Station));
+                    // Exact matches come before matches with a typo; the sorts are stable, so name order is kept otherwise.
+                    var matches = source
+                        .Select(s => (Item: s, Match: filter.Match(s.Station)))
+                        .Where(m => m.Match != StationMatch.None)
+                        .OrderBy(m => m.Match == StationMatch.Fuzzy);
                     // Within a country, the most popular stations come first; unranked ones keep name order.
                     if (ranks is { Count: > 0 })
                     {
-                        matches = matches.OrderBy(s => ranks.TryGetValue(s.Station.Url, out var rank) ? rank : int.MaxValue);
+                        matches = matches.ThenBy(m => ranks.TryGetValue(m.Item.Station.Url, out var rank) ? rank : int.MaxValue);
                     }
 
-                    return matches.ToList();
+                    return matches.Select(m => m.Item).ToList();
                 }, cts.Token);
 
             if (!cts.IsCancellationRequested)
