@@ -176,13 +176,22 @@ public sealed class StationStream : IDisposable
             // Ignore a relay that is being replaced by a new connection.
             if (_relayUrl == relayUrl)
             {
-                SetMetadata(metadata.Title is null && !metadata.IsAd ? null : metadata);
+                if (metadata is { Title: null, IsAd: false })
+                {
+                    // Some stations clear the title between a song and the ads. That does not end the song,
+                    // so the ads that follow are still noticed when the song runs over.
+                    SetMetadata(null, keepSongEnd: true);
+                }
+                else
+                {
+                    SetMetadata(metadata);
+                }
             }
         }));
         return relayUrl;
     }
 
-    private void SetMetadata(IcyMetadata? metadata)
+    private void SetMetadata(IcyMetadata? metadata, bool keepSongEnd = false)
     {
         if (Metadata == metadata)
         {
@@ -190,9 +199,13 @@ public sealed class StationStream : IDisposable
         }
 
         Metadata = metadata;
-        _songNumber++;
-        _songEndTimer.Stop();
-        IsSongOverdue = false;
+        if (!keepSongEnd)
+        {
+            _songNumber++;
+            _songEndTimer.Stop();
+            IsSongOverdue = false;
+        }
+
         MetadataChanged?.Invoke(this, EventArgs.Empty);
 
         if (_durations is not null && metadata is { IsAd: false, Title: { } title })

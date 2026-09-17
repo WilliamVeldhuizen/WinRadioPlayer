@@ -33,4 +33,28 @@ public class FavoriteTrackTests
             Directory.Delete(Path.GetDirectoryName(path)!, recursive: true);
         }
     }
+
+    [Fact]
+    public void SettingsStore_KeepsTheAdBreakChoiceFromItsOldName()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"ZapperRadio-{Guid.NewGuid():N}", "settings.json");
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, """{ "Volume": 0.5, "SkipAdBreaks": true }""");
+            var store = new SettingsStore(path);
+
+            var settings = store.Load();
+            Assert.True(settings.ZappOnAdBreaks);
+
+            store.Save(settings);
+            var saved = File.ReadAllText(path);
+            Assert.DoesNotContain("SkipAdBreaks", saved);
+            Assert.True(store.Load().ZappOnAdBreaks);
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(path)!, recursive: true);
+        }
+    }
 }

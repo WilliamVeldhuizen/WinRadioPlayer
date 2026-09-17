@@ -74,9 +74,9 @@
                             TextWrapping="Wrap" />
                         <CheckBox
                             Margin="0,4,0,0"
-                            Content="Skip ad breaks"
-                            IsChecked="{x:Bind ViewModel.SkipAdBreaks, Mode=TwoWay}"
-                            ToolTipService.ToolTip="When the station you are listening to starts an ad break, switch to the highest favorite that is live and not playing an ad. Stations that do not mark their ads are assumed to be in an ad break when a song runs well past its length." />
+                            Content="Zapp on ad breaks"
+                            IsChecked="{x:Bind ViewModel.ZappOnAdBreaks, Mode=TwoWay}"
+                            ToolTipService.ToolTip="When the station you are listening to starts an ad break, zap to the highest favorite that is playing a song, and zap back as soon as the break is over. Stations that do not mark their ads are assumed to be in an ad break when a song runs well past its length." />
                     </StackPanel>
 
                     <TextBlock

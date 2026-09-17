@@ -54,6 +54,15 @@ public class TrackDurationsTests
     }
 
     [Fact]
+    public async Task GetAsync_FindsTitlesSentAsTitleThenArtist()
+    {
+        var handler = new FakeHandler(_ => QueenResults);
+        var durations = new TrackDurations(new HttpClient(handler), TimeSpan.Zero) { SearchUrl = new Uri("https://search.example/") };
+
+        Assert.Equal(TimeSpan.FromMilliseconds(354320), await durations.GetAsync("Bohemian Rhapsody - QUEEN"));
+    }
+
+    [Fact]
     public async Task GetAsync_CachesSongsAndRetriesFailures()
     {
         var requests = 0;

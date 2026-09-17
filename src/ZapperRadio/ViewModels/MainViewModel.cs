@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Dispatching;
 using ZapperRadio.Core.Catalog;
 using ZapperRadio.Core.Models;
+using ZapperRadio.Core.Playback;
 using ZapperRadio.Core.Settings;
 using ZapperRadio.Core.Shell;
 using ZapperRadio.Core.Streaming;
@@ -37,7 +38,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? _searchCts;
     private bool _favoritesSyncPending;
     private Station? _lastPlayed;
-    private StationStream? _chosenDuringAd;
+    private readonly AdBreakZapper _zapper = new();
     private bool _isFirstRun;
     private string? _jumpListShown;
     private Task _jumpListUpdates = Task.CompletedTask;
@@ -84,7 +85,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         Volume = _engine.Volume * 100;
         SelectedCountry = _settings.Country ?? AllCountries;
-        SkipAdBreaks = _settings.SkipAdBreaks;
 
         foreach (var station in _settings.Favorites.DistinctBy(s => s.Url).Take(AppSettings.MaxFavorites))
         {
@@ -99,6 +99,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         FavoriteTracks.CollectionChanged += OnFavoriteTracksChanged;
         Favorites.CollectionChanged += OnFavoritesChanged;
         SyncFavorites();
+        // After the favorites are loaded, because changing it saves the settings.
+        ZappOnAdBreaks = _settings.ZappOnAdBreaks;
     }
 
     /// <summary>
@@ -195,9 +197,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     public partial bool IsMuted { get; set; }
 
-    /// <summary>When the station being listened to starts an ad break, switch to the highest favorite without one.</summary>
+    /// <summary>Zap to another favorite during the ad breaks of the station being listened to, and back once they are over.</summary>
     [ObservableProperty]
-    public partial bool SkipAdBreaks { get; set; }
+    public partial bool ZappOnAdBreaks { get; set; }
 
     public async Task LoadCatalogAsync()
     {
@@ -267,8 +269,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         _lastPlayed = station;
         _engine.Play(station);
-        // Picking a station during its ad break means you want to hear it anyway, so that break is not skipped.
-        _chosenDuringAd = _engine.Active is { IsInAdBreak: true } active ? active : null;
+        if (_engine.Active is { } active)
+        {
+            // Picking a station ends any zapping, and picking it during its ad break means you want to hear it anyway.
+            _zapper.OnPicked(active.Station.Url, ChannelOf(active));
+        }
     }
 
     [RelayCommand]
@@ -277,6 +282,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (_engine.Active is not null)
         {
             _engine.Stop();
+            _zapper.OnStopped();
         }
         else if ((_lastPlayed ?? Favorites.FirstOrDefault()?.Station) is { } station)
         {
@@ -380,26 +386,50 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void ToggleMute() => IsMuted = !IsMuted;
 
-    partial void OnSkipAdBreaksChanged(bool value)
+    partial void OnZappOnAdBreaksChanged(bool value)
     {
-        _settings.SkipAdBreaks = value;
-        if (value && _engine.Active is { IsInAdBreak: true } active)
+        _settings.ZappOnAdBreaks = value;
+        SaveSettings();
+        if (!value)
         {
-            SkipAdBreak(active);
+            // Don't jump back to a station later on, after zapping was turned off.
+            _zapper.OnStopped();
+        }
+
+        ZapOnAdBreak();
+    }
+
+    /// <summary>
+    /// Zaps away from an ad break or back to the station after its break. Runs on every change of any stream,
+    /// so it also zaps once another favorite becomes available, when none was at the start of the break.
+    /// </summary>
+    private void ZapOnAdBreak()
+    {
+        if (!ZappOnAdBreaks || _engine.Active is not { } active)
+        {
+            return;
+        }
+
+        var favorites = Favorites
+            .Select(f => _engine.Find(f.Station.Url))
+            .OfType<StationStream>()
+            .Select(s => new Channel(s.Station.Url, ChannelOf(s)))
+            .ToList();
+        if (_zapper.Next(new Channel(active.Station.Url, ChannelOf(active)), favorites, DateTimeOffset.UtcNow) is { } url
+            && _engine.Find(url) is { } next)
+        {
+            _lastPlayed = next.Station;
+            _engine.Play(next.Station);
         }
     }
 
-    /// <summary>Switches to the highest favorite that is live and not in an ad break, if there is one.</summary>
-    private void SkipAdBreak(StationStream active)
+    private static ChannelState ChannelOf(StationStream stream) => stream switch
     {
-        var next = Favorites
-            .Select(f => _engine.Find(f.Station.Url))
-            .FirstOrDefault(s => s is not null && s != active && s.Status == StreamStatus.Live && !s.IsInAdBreak);
-        if (next is not null)
-        {
-            Play(next.Station);
-        }
-    }
+        { IsInAdBreak: true } => ChannelState.Ad,
+        { Status: not StreamStatus.Live } => ChannelState.Unavailable,
+        { Metadata.Title: not null } => ChannelState.Song,
+        _ => ChannelState.Unknown,
+    };
 
     private async Task ApplySearchAsync()
     {
@@ -582,6 +612,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             UpdateNowPlaying();
         }
+
+        ZapOnAdBreak();
     }
 
     private void OnStreamMetadataChanged(StationStream stream)
@@ -592,20 +624,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ScheduleJumpListUpdate();
         }
 
-        var isAd = stream.IsInAdBreak;
-        if (stream == _chosenDuringAd && !isAd)
-        {
-            _chosenDuringAd = null;
-        }
-
         if (stream == _engine.Active)
         {
             UpdateNowPlaying();
-            if (isAd && SkipAdBreaks && stream != _chosenDuringAd)
-            {
-                SkipAdBreak(stream);
-            }
         }
+
+        ZapOnAdBreak();
     }
 
     private void UpdateNowPlaying()

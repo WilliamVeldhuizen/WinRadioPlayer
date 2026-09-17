@@ -18,8 +18,23 @@ public sealed class AppSettings
 
     public string? Country { get; set; }
 
-    /// <summary>Switch to another favorite when the station being listened to starts an ad break.</summary>
-    public bool SkipAdBreaks { get; set; }
+    /// <summary>Zap to another favorite during the ad breaks of the station being listened to, and back afterwards.</summary>
+    public bool ZappOnAdBreaks { get; set; }
+
+    /// <summary>What <see cref="ZappOnAdBreaks"/> was called before; only read, so older settings files keep the choice.</summary>
+    [JsonPropertyName("SkipAdBreaks")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? LegacySkipAdBreaks
+    {
+        get => null;
+        set
+        {
+            if (value is true)
+            {
+                ZappOnAdBreaks = true;
+            }
+        }
+    }
 }
 
 public sealed class SettingsStore(string path)

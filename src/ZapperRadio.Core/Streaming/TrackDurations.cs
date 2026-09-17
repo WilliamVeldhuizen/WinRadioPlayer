@@ -63,7 +63,8 @@ public sealed class TrackDurations(HttpClient http, TimeSpan? requestSpacing = n
             using var timeout = new CancellationTokenSource(RequestTimeout);
             var term = Uri.EscapeDataString($"{artist} {title}");
             var json = await http.GetStringAsync(new Uri($"{SearchUrl}?term={term}&media=music&entity=song&limit=10"), timeout.Token);
-            return FindDuration(json, artist, title);
+            // Some stations (such as Qmusic) send "Title - Artist"; the search term matches either order.
+            return FindDuration(json, artist, title) ?? FindDuration(json, title, artist);
         }
         catch (Exception ex) when (ex is HttpRequestException or JsonException or TaskCanceledException)
         {

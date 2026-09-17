@@ -10,6 +10,12 @@ public class IcyProxyTests
     [InlineData("StreamTitle='Artist - Title';StreamUrl='';", "Artist - Title", false)]
     [InlineData("StreamTitle='Don't Stop Me Now';", "Don't Stop Me Now", false)]
     [InlineData("StreamTitle='';StreamUrl='';adw_ad='true';durationMilliseconds='20053';insertionType='preroll';", null, true)]
+    // Qmusic and JOE mark their ad breaks with a title.
+    [InlineData("StreamTitle='adbreak';StreamUrl='';", null, true)]
+    [InlineData("StreamTitle='commercial-in';StreamUrl='';", null, true)]
+    [InlineData("StreamTitle='commercial-out';StreamUrl='';", null, true)]
+    [InlineData("StreamTitle='Commercial Break';", null, true)]
+    [InlineData("StreamTitle='The Commercials - Ad Break';", "The Commercials - Ad Break", false)]
     [InlineData("StreamTitle='  ';", null, false)]
     [InlineData("", null, false)]
     public void ParsesMetadata(string text, string? title, bool isAd)
