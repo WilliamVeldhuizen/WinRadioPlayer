@@ -32,19 +32,23 @@ public sealed class StationStream : IDisposable
 
     private readonly DispatcherQueue _dispatcher;
     private readonly StreamUrlResolver _resolver;
+    private readonly IcyProxy? _proxy;
     private readonly MediaPlayer _player;
     private readonly DispatcherQueueTimer _watchdog;
     private readonly DispatcherQueueTimer _retryTimer;
     private CancellationTokenSource? _connectCts;
     private MediaSource? _source;
+    private Uri? _relayUrl;
     private int _failedAttempts;
     private DateTime _lastPlayingUtc;
     private bool _disposed;
 
-    public StationStream(Station station, StreamUrlResolver resolver, DispatcherQueue dispatcher, double volume)
+    /// <param name="proxy">Relays the stream to read its song titles; null plays the station directly.</param>
+    public StationStream(Station station, StreamUrlResolver resolver, IcyProxy? proxy, DispatcherQueue dispatcher, double volume)
     {
         Station = station;
         _resolver = resolver;
+        _proxy = proxy;
         _dispatcher = dispatcher;
 
         _player = new MediaPlayer
@@ -77,6 +81,11 @@ public sealed class StationStream : IDisposable
     public string? LastError { get; private set; }
 
     public event EventHandler? StatusChanged;
+
+    /// <summary>The latest song title (or ad marker) the station sent, or null when there is none.</summary>
+    public IcyMetadata? Metadata { get; private set; }
+
+    public event EventHandler? MetadataChanged;
 
     public bool IsMuted
     {
@@ -113,7 +122,7 @@ public sealed class StationStream : IDisposable
             }
 
             ReleaseSource();
-            _source = MediaSource.CreateFromUri(uri);
+            _source = MediaSource.CreateFromUri(RelayForTitles(uri));
             _player.Source = _source;
             _lastPlayingUtc = DateTime.UtcNow;
             _watchdog.Start();
@@ -124,6 +133,36 @@ public sealed class StationStream : IDisposable
         catch (Exception ex)
         {
             ScheduleReconnect(ex.Message);
+        }
+    }
+
+    private Uri RelayForTitles(Uri uri)
+    {
+        // HLS playlists reference their segments relatively, so they cannot go through the relay.
+        if (_proxy is null || StreamUrlResolver.GetPlaylistKind(uri) != PlaylistKind.None
+                           || uri.AbsolutePath.EndsWith(".m3u8", StringComparison.OrdinalIgnoreCase))
+        {
+            return uri;
+        }
+
+        Uri? relayUrl = null;
+        relayUrl = _relayUrl = _proxy.Register(uri, metadata => OnUiThread(() =>
+        {
+            // Ignore a relay that is being replaced by a new connection.
+            if (_relayUrl == relayUrl)
+            {
+                SetMetadata(metadata.Title is null && !metadata.IsAd ? null : metadata);
+            }
+        }));
+        return relayUrl;
+    }
+
+    private void SetMetadata(IcyMetadata? metadata)
+    {
+        if (Metadata != metadata)
+        {
+            Metadata = metadata;
+            MetadataChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 
@@ -219,6 +258,14 @@ public sealed class StationStream : IDisposable
         _player.Source = null;
         _source.Dispose();
         _source = null;
+
+        if (_relayUrl is not null)
+        {
+            _proxy?.Unregister(_relayUrl);
+            _relayUrl = null;
+        }
+
+        SetMetadata(null);
     }
 
     public void Dispose()

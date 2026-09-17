@@ -25,6 +25,7 @@ It does cost bandwidth: each favorite is a continuous stream of roughly 64 to 32
 - Search by name, genre or country, plus a per-country filter. `qmusic` also finds "Q music".
 - When a country is selected, its most popular stations (by [radio-browser.info](https://www.radio-browser.info/) play count) are listed first.
 - Add favorites with the star, reorder them by dragging, and press `Ctrl+1` … `Ctrl+0` to switch to favorite 1 to 10.
+- Each favorite shows the song it is playing right now (or "Advertisement" during an ad break), for stations that send Shoutcast/Icecast titles.
 - `Ctrl+Space` to stop or play, `Ctrl+F` to search.
 - `.pls`, `.m3u` and `.asx` playlists are resolved to the actual stream. HLS (`.m3u8`) is played directly.
 - Dropped or stalled streams reconnect automatically.
@@ -61,7 +62,7 @@ git push origin v1.1.0
 
 ## Structure
 
-- `src/WinRadioPlayer.Core`: downloading and parsing the station list, search, playlist resolving and settings. No UI, fully tested.
+- `src/WinRadioPlayer.Core`: downloading and parsing the station list, search, playlist resolving, the local relay that reads song titles from the streams and settings. No UI, fully tested.
 - `src/WinRadioPlayer`: WinUI app. `Playback/RadioEngine` manages the muted streams, `Playback/StationStream` is a single `MediaPlayer` with reconnect logic.
 - `tests/WinRadioPlayer.Core.Tests`: xUnit tests.
 - `installer`: WiX project for the MSI (not in the solution, build it with `build-installer.ps1`).

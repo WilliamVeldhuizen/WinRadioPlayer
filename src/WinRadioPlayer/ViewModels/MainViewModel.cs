@@ -25,6 +25,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly StationDirectory _directory;
     private readonly StationPopularity _popularity;
     private readonly Dictionary<string, IReadOnlyDictionary<string, int>> _popularityByCountry = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HttpClient _streamHttp;
+    private readonly IcyProxy _proxy;
     private readonly RadioEngine _engine;
     private readonly DispatcherQueueTimer _searchDebounce;
 
@@ -49,9 +51,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _directory = new StationDirectory(_http, Path.Combine(dataFolder, "cache"));
         _popularity = new StationPopularity(_http, Path.Combine(dataFolder, "cache"));
 
-        _engine = new RadioEngine(new StreamUrlResolver(_http), dispatcher) { Volume = Math.Clamp(_settings.Volume, 0, 1) };
+        // Streams run for hours, so the relay gets a client without the overall request timeout.
+        _streamHttp = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
+        _streamHttp.DefaultRequestHeaders.UserAgent.ParseAdd("WinRadioPlayer/1.0");
+        _proxy = new IcyProxy(_streamHttp);
+
+        _engine = new RadioEngine(new StreamUrlResolver(_http), _proxy, dispatcher) { Volume = Math.Clamp(_settings.Volume, 0, 1) };
         _engine.ActiveChanged += (_, _) => UpdateNowPlaying();
         _engine.StreamStatusChanged += (_, stream) => OnStreamStatusChanged(stream);
+        _engine.StreamMetadataChanged += (_, stream) => OnStreamMetadataChanged(stream);
 
         _searchDebounce = dispatcher.CreateTimer();
         _searchDebounce.Interval = TimeSpan.FromMilliseconds(250);
@@ -105,6 +113,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     public partial string NowPlayingStatus { get; set; } = "Click a favorite to listen live instantly";
+
+    /// <summary>The current song of the station being listened to, or empty when unknown.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasNowPlayingSong))]
+    public partial string NowPlayingSong { get; set; } = "";
+
+    public bool HasNowPlayingSong => NowPlayingSong.Length > 0;
 
     [ObservableProperty]
     public partial bool IsPlaying { get; set; }
@@ -322,6 +337,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             if (_engine.Find(favorite.Station.Url) is { } stream)
             {
                 favorite.Status = stream.Status;
+                favorite.Song = SongTexts.For(stream.Metadata);
             }
         }
 
@@ -352,6 +368,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    private void OnStreamMetadataChanged(StationStream stream)
+    {
+        foreach (var favorite in Favorites.Where(f => f.Station.Url == stream.Station.Url))
+        {
+            favorite.Song = SongTexts.For(stream.Metadata);
+        }
+
+        if (stream == _engine.Active)
+        {
+            UpdateNowPlaying();
+        }
+    }
+
     private void UpdateNowPlaying()
     {
         var active = _engine.Active;
@@ -364,12 +393,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (active is null)
         {
             NowPlayingName = _lastPlayed?.Name ?? "Choose a station";
+            NowPlayingSong = "";
             NowPlayingStatus = _lastPlayed is null ? "Click a favorite to listen live instantly" : "Stopped";
             return;
         }
 
         NowPlayingName = active.Station.Name;
         var isFavorite = Favorites.Any(f => f.Station.Url == active.Station.Url);
+        NowPlayingSong = SongTexts.For(active.Metadata);
         NowPlayingStatus = StatusTexts.For(active.Status, isActive: true)
                            + (isFavorite ? "" : " · not a favorite, stream stops when switching")
                            + (active.Status is StreamStatus.Reconnecting or StreamStatus.Failed && active.LastError is { } error ? $" ({error})" : "");
@@ -400,6 +431,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         SaveSettings();
         _searchCts?.Cancel();
         _engine.Dispose();
+        _proxy.Dispose();
+        _streamHttp.Dispose();
         _http.Dispose();
     }
 }

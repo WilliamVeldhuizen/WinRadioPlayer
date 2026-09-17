@@ -107,6 +107,15 @@
 
                                     <StackPanel Grid.Column="1" Spacing="2">
                                         <TextBlock Text="{x:Bind Name}" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" />
+                                        <StackPanel Orientation="Horizontal" Spacing="6" Visibility="{x:Bind HasSong, Mode=OneWay}">
+                                            <FontIcon Glyph="&#xE8D6;" FontSize="11" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                            <TextBlock
+                                                Text="{x:Bind Song, Mode=OneWay}"
+                                                Style="{StaticResource CaptionTextBlockStyle}"
+                                                Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                                TextTrimming="CharacterEllipsis"
+                                                ToolTipService.ToolTip="{x:Bind Song, Mode=OneWay}" />
+                                        </StackPanel>
                                         <TextBlock
                                             Text="{x:Bind Subtitle}"
                                             Style="{StaticResource CaptionTextBlockStyle}"
@@ -247,6 +256,10 @@
 
                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
                     <TextBlock Text="{x:Bind ViewModel.NowPlayingName, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" />
+                    <StackPanel Orientation="Horizontal" Spacing="6" Visibility="{x:Bind ViewModel.HasNowPlayingSong, Mode=OneWay}">
+                        <FontIcon Glyph="&#xE8D6;" FontSize="12" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                        <TextBlock Text="{x:Bind ViewModel.NowPlayingSong, Mode=OneWay}" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
                     <TextBlock
                         Text="{x:Bind ViewModel.NowPlayingStatus, Mode=OneWay}"
                         Style="{StaticResource CaptionTextBlockStyle}"

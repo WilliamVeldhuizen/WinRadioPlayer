@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using WinRadioPlayer.Core.Models;
+using WinRadioPlayer.Core.Streaming;
 using WinRadioPlayer.Playback;
 
 namespace WinRadioPlayer.ViewModels;
@@ -23,7 +24,24 @@ public sealed partial class FavoriteViewModel(Station station) : ObservableObjec
     [ObservableProperty]
     public partial string ShortcutText { get; set; } = "";
 
+    /// <summary>The song the station is playing right now, or empty when it does not say.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSong))]
+    public partial string Song { get; set; } = "";
+
+    public bool HasSong => Song.Length > 0;
+
     public string StatusText => StatusTexts.For(Status, IsActive);
+}
+
+public static class SongTexts
+{
+    public static string For(IcyMetadata? metadata) => metadata switch
+    {
+        { IsAd: true } => "Advertisement",
+        { Title: { } title } => title,
+        _ => "",
+    };
 }
 
 public static class StatusTexts

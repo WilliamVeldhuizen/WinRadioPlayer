@@ -9,7 +9,7 @@ namespace WinRadioPlayer.Playback;
 /// A station that is not a favorite gets a temporary stream that is closed when you switch away,
 /// unless it is added to the favorites while playing, in which case its stream is kept.
 /// </summary>
-public sealed class RadioEngine(StreamUrlResolver resolver, DispatcherQueue dispatcher) : IDisposable
+public sealed class RadioEngine(StreamUrlResolver resolver, IcyProxy? proxy, DispatcherQueue dispatcher) : IDisposable
 {
     private readonly Dictionary<string, StationStream> _favorites = new(StringComparer.Ordinal);
     private StationStream? _transient;
@@ -20,6 +20,8 @@ public sealed class RadioEngine(StreamUrlResolver resolver, DispatcherQueue disp
     public event EventHandler? ActiveChanged;
 
     public event EventHandler<StationStream>? StreamStatusChanged;
+
+    public event EventHandler<StationStream>? StreamMetadataChanged;
 
     public double Volume
     {
@@ -125,8 +127,9 @@ public sealed class RadioEngine(StreamUrlResolver resolver, DispatcherQueue disp
 
     private StationStream CreateAndStart(Station station)
     {
-        var stream = new StationStream(station, resolver, dispatcher, _volume);
+        var stream = new StationStream(station, resolver, proxy, dispatcher, _volume);
         stream.StatusChanged += OnStreamStatusChanged;
+        stream.MetadataChanged += OnStreamMetadataChanged;
         stream.Start();
         return stream;
     }
@@ -134,11 +137,15 @@ public sealed class RadioEngine(StreamUrlResolver resolver, DispatcherQueue disp
     private void Release(StationStream stream)
     {
         stream.StatusChanged -= OnStreamStatusChanged;
+        stream.MetadataChanged -= OnStreamMetadataChanged;
         stream.Dispose();
     }
 
     private void OnStreamStatusChanged(object? sender, EventArgs e) =>
         StreamStatusChanged?.Invoke(this, (StationStream)sender!);
+
+    private void OnStreamMetadataChanged(object? sender, EventArgs e) =>
+        StreamMetadataChanged?.Invoke(this, (StationStream)sender!);
 
     private IEnumerable<StationStream> AllStreams() =>
         _transient is null ? _favorites.Values : _favorites.Values.Append(_transient);
