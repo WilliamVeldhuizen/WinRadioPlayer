@@ -19,6 +19,19 @@ public class StationPopularityTests
         Assert.Contains("order=clickcount&reverse=true", query);
     }
 
+    [Theory]
+    [InlineData("NL", "Netherlands")]
+    [InlineData("gb", "United Kingdom")]
+    [InlineData("TR", "Turkey")]
+    [InlineData("VG", "VG")]
+    [InlineData("FR", null)]
+    public void FindCountry_MatchesIsoCode(string isoCode, string? expected)
+    {
+        string[] countries = ["All countries", "Germany", "Netherlands", "Turkey", "United Kingdom", "VG"];
+
+        Assert.Equal(expected, StationPopularity.FindCountry(countries, isoCode));
+    }
+
     [Fact]
     public void ParseUrls_KeepsApiOrder()
     {

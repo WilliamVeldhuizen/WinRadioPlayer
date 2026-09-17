@@ -74,6 +74,11 @@ public sealed class StationPopularity(HttpClient http, string cacheFolder, IRead
         return $"json/stations/search?{filter}&order=clickcount&reverse=true&hidebroken=true&limit={Limit}";
     }
 
+    /// <summary>Finds the country in the station list with the given ISO code (e.g. "NL"), or null if it is not there.</summary>
+    public static string? FindCountry(IEnumerable<string> countries, string isoCode) =>
+        countries.FirstOrDefault(c =>
+            string.Equals(CountryCodes.Value.TryGetValue(c, out var code) ? code : c, isoCode, StringComparison.OrdinalIgnoreCase));
+
     /// <summary>Extracts station URLs (in the API's order) from a radio-browser station search response.</summary>
     public static List<string> ParseUrls(string json)
     {

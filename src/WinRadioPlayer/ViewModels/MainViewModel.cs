@@ -34,6 +34,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? _searchCts;
     private bool _favoritesSyncPending;
     private Station? _lastPlayed;
+    private bool _isFirstRun;
 
     public MainViewModel(DispatcherQueue dispatcher)
     {
@@ -46,7 +47,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         };
         _http.DefaultRequestHeaders.UserAgent.ParseAdd("WinRadioPlayer/1.0");
 
-        _settingsStore = new SettingsStore(Path.Combine(dataFolder, "settings.json"));
+        var settingsPath = Path.Combine(dataFolder, "settings.json");
+        _isFirstRun = !File.Exists(settingsPath);
+        _settingsStore = new SettingsStore(settingsPath);
         _settings = _settingsStore.Load();
         _directory = new StationDirectory(_http, Path.Combine(dataFolder, "cache"));
         _popularity = new StationPopularity(_http, Path.Combine(dataFolder, "cache"));
@@ -164,6 +167,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             RefreshFavoriteMarks();
 
             var country = SelectedCountry;
+            if (_isFirstRun && country == AllCountries && WindowsRegion.GetIsoCode() is { } region)
+            {
+                // Without saved settings, start with the country set in Windows.
+                country = StationPopularity.FindCountry(stations.countries, region) ?? country;
+            }
+
+            _isFirstRun = false;
             Countries = stations.countries;
             SelectedCountry = stations.countries.Contains(country) ? country : AllCountries;
             // Refresh the country box, which may still show text typed while the list was loading.
