@@ -166,12 +166,17 @@
                             x:Name="SearchBox"
                             PlaceholderText="Search by name, genre or country (Ctrl+F)"
                             Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                        <ComboBox
+                        <AutoSuggestBox
+                            x:Name="CountryBox"
                             Grid.Column="1"
-                            HorizontalAlignment="Stretch"
-                            ItemsSource="{x:Bind ViewModel.Countries, Mode=OneWay}"
-                            SelectedItem="{x:Bind ViewModel.SelectedCountry, Mode=OneWay}"
-                            SelectionChanged="Country_SelectionChanged" />
+                            PlaceholderText="Country"
+                            AutomationProperties.Name="Country"
+                            QueryIcon="Filter"
+                            Text="{x:Bind ViewModel.SelectedCountry, Mode=OneWay}"
+                            GotFocus="Country_GotFocus"
+                            LostFocus="Country_LostFocus"
+                            TextChanged="Country_TextChanged"
+                            QuerySubmitted="Country_QuerySubmitted" />
                         <Button
                             Grid.Column="2"
                             Style="{StaticResource IconButtonStyle}"

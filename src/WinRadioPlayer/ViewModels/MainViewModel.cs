@@ -166,7 +166,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             var country = SelectedCountry;
             Countries = stations.countries;
             SelectedCountry = stations.countries.Contains(country) ? country : AllCountries;
-            // Replacing the ComboBox items clears its selection, even if the value itself did not change.
+            // Refresh the country box, which may still show text typed while the list was loading.
             OnPropertyChanged(nameof(SelectedCountry));
 
             var date = catalog.GeneratedAt?.ToString("MMMM d, yyyy", EnglishCulture) ?? catalog.FileName;
@@ -238,6 +238,24 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         _searchDebounce.Stop();
         _searchDebounce.Start();
+    }
+
+    /// <summary>
+    /// The countries containing <paramref name="text"/>, those starting with it first.
+    /// Empty text matches every country, including <see cref="AllCountries"/>.
+    /// </summary>
+    public IReadOnlyList<string> MatchCountries(string? text)
+    {
+        text = text?.Trim();
+        if (string.IsNullOrEmpty(text))
+        {
+            return Countries;
+        }
+
+        return Countries
+            .Where(c => c.Contains(text, StringComparison.CurrentCultureIgnoreCase))
+            .OrderBy(c => !c.StartsWith(text, StringComparison.CurrentCultureIgnoreCase))
+            .ToList();
     }
 
     partial void OnSelectedCountryChanged(string value)
