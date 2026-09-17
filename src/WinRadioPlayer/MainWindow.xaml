@@ -334,7 +334,6 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="180" />
                 </Grid.ColumnDefinitions>
 
@@ -348,10 +347,35 @@
 
                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
                     <TextBlock Text="{x:Bind ViewModel.NowPlayingName, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" />
-                    <StackPanel Orientation="Horizontal" Spacing="6" Visibility="{x:Bind ViewModel.HasNowPlayingSong, Mode=OneWay}">
+                    <Grid ColumnSpacing="6" Visibility="{x:Bind ViewModel.HasNowPlayingSong, Mode=OneWay}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
                         <FontIcon Glyph="&#xE8D6;" FontSize="12" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                        <TextBlock Text="{x:Bind ViewModel.NowPlayingSong, Mode=OneWay}" TextTrimming="CharacterEllipsis" />
-                    </StackPanel>
+                        <!-- Left aligned, so the heart sits right after the song and a long song is still trimmed. -->
+                        <Grid Grid.Column="1" HorizontalAlignment="Left" ColumnSpacing="4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="{x:Bind ViewModel.NowPlayingSong, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                            <Button
+                                Grid.Column="1"
+                                Width="32" Height="32" Padding="0" Margin="0,-6"
+                                VerticalAlignment="Center"
+                                Background="Transparent" BorderThickness="0"
+                                Visibility="{x:Bind ViewModel.CanSaveNowPlayingTrack, Mode=OneWay}"
+                                ToolTipService.ToolTip="{x:Bind local:UiHelpers.SaveTrackToolTip(ViewModel.IsNowPlayingTrackSaved), Mode=OneWay}"
+                                AutomationProperties.Name="{x:Bind local:UiHelpers.SaveTrackToolTip(ViewModel.IsNowPlayingTrackSaved), Mode=OneWay}"
+                                Command="{x:Bind ViewModel.ToggleNowPlayingTrackSavedCommand}">
+                                <FontIcon
+                                    FontSize="20"
+                                    Glyph="{x:Bind local:UiHelpers.HeartGlyph(ViewModel.IsNowPlayingTrackSaved), Mode=OneWay}"
+                                    Foreground="{x:Bind local:UiHelpers.HeartBrush(ViewModel.IsNowPlayingTrackSaved), Mode=OneWay}" />
+                            </Button>
+                        </Grid>
+                    </Grid>
                     <TextBlock
                         Text="{x:Bind ViewModel.NowPlayingStatus, Mode=OneWay}"
                         Style="{StaticResource CaptionTextBlockStyle}"
@@ -364,27 +388,13 @@
                     Width="40" Height="40" Padding="0"
                     VerticalAlignment="Center"
                     Background="Transparent" BorderThickness="0"
-                    Visibility="{x:Bind ViewModel.CanSaveNowPlayingTrack, Mode=OneWay}"
-                    ToolTipService.ToolTip="{x:Bind local:UiHelpers.SaveTrackToolTip(ViewModel.IsNowPlayingTrackSaved), Mode=OneWay}"
-                    AutomationProperties.Name="{x:Bind local:UiHelpers.SaveTrackToolTip(ViewModel.IsNowPlayingTrackSaved), Mode=OneWay}"
-                    Command="{x:Bind ViewModel.ToggleNowPlayingTrackSavedCommand}">
-                    <FontIcon
-                        FontSize="16"
-                        Glyph="{x:Bind local:UiHelpers.HeartGlyph(ViewModel.IsNowPlayingTrackSaved), Mode=OneWay}"
-                        Foreground="{x:Bind local:UiHelpers.HeartBrush(ViewModel.IsNowPlayingTrackSaved), Mode=OneWay}" />
-                </Button>
-                <Button
-                    Grid.Column="3"
-                    Width="40" Height="40" Padding="0"
-                    VerticalAlignment="Center"
-                    Background="Transparent" BorderThickness="0"
                     ToolTipService.ToolTip="{x:Bind local:UiHelpers.MuteToolTip(ViewModel.IsMuted), Mode=OneWay}"
                     AutomationProperties.Name="{x:Bind local:UiHelpers.MuteToolTip(ViewModel.IsMuted), Mode=OneWay}"
                     Command="{x:Bind ViewModel.ToggleMuteCommand}">
                     <FontIcon Glyph="{x:Bind local:UiHelpers.MuteGlyph(ViewModel.IsMuted), Mode=OneWay}" FontSize="16" />
                 </Button>
                 <Slider
-                    Grid.Column="4"
+                    Grid.Column="3"
                     VerticalAlignment="Center"
                     Minimum="0" Maximum="100" StepFrequency="1"
                     Value="{x:Bind ViewModel.Volume, Mode=TwoWay}" />
