@@ -55,12 +55,7 @@ The MSI (WiX 6) installs the app in `Program Files\WinRadioPlayer` and adds a St
 An MSI with a higher `-Version` replaces the old installation. Your favorites are kept.
 The MSI is not digitally signed, so Windows SmartScreen may ask for confirmation the first time.
 
-To publish a release, push a version tag. The [Release workflow](.github/workflows/release.yml) builds the x64 and ARM64 installers and attaches them to a new GitHub release:
-
-```powershell
-git tag v1.1.0
-git push origin v1.1.0
-```
+To publish a release, bump `<Version>` in `src/WinRadioPlayer/WinRadioPlayer.csproj` and push to `main`. The [Release workflow](.github/workflows/release.yml) runs on every push. When no release exists yet for that version, it builds the x64 and ARM64 installers and attaches them to a new GitHub release tagged `v<version>`.
 
 ## Structure
 
