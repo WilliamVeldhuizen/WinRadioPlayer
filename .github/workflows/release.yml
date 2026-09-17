@@ -1,0 +1,41 @@
+# Builds the MSI installers and publishes them as a GitHub release when a version tag is pushed:
+#   git tag v1.1.0 && git push origin v1.1.0
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Test
+        run: dotnet test tests/WinRadioPlayer.Core.Tests -c Release
+
+      - name: Build installers
+        shell: pwsh
+        run: |
+          $version = '${{ github.ref_name }}'.TrimStart('v')
+          foreach ($arch in 'x64', 'arm64') {
+              ./build-installer.ps1 -Version $version -Arch $arch
+              # Versionless names keep the README's "latest release" download links stable.
+              Copy-Item "artifacts/installer/WinRadioPlayer-$version-$arch.msi" "artifacts/WinRadioPlayer-$arch.msi"
+          }
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: WinRadioPlayer ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            artifacts/WinRadioPlayer-x64.msi
+            artifacts/WinRadioPlayer-arm64.msi

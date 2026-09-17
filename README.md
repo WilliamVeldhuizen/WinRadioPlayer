@@ -2,6 +2,15 @@
 
 Internet radio for Windows (.NET 10 + WinUI 3 / Windows App SDK).
 
+## Download
+
+Windows 10 (version 2004) or later:
+
+- [**WinRadioPlayer-x64.msi**](https://github.com/WilliamVeldhuizen/WinRadioPlayer/releases/latest/download/WinRadioPlayer-x64.msi) for most PCs
+- [WinRadioPlayer-arm64.msi](https://github.com/WilliamVeldhuizen/WinRadioPlayer/releases/latest/download/WinRadioPlayer-arm64.msi) for ARM devices (e.g. Snapdragon laptops)
+
+All versions are on the [Releases](https://github.com/WilliamVeldhuizen/WinRadioPlayer/releases) page. The installer is not digitally signed, so Windows SmartScreen may warn you: choose **More info** → **Run anyway**.
+
 ## Why
 
 Many stations play an ad as soon as you connect. With a regular radio player that happens every time you switch stations.
@@ -30,7 +39,7 @@ dotnet test
 
 Settings and the station cache are stored in `%LOCALAPPDATA%\WinRadioPlayer`.
 
-## Installer
+## Building the installer
 
 ```powershell
 .\build-installer.ps1                         # artifacts\installer\WinRadioPlayer-1.0.0-x64.msi
@@ -41,6 +50,13 @@ The MSI (WiX 6) installs the app in `Program Files\WinRadioPlayer` and adds a St
 .NET and the Windows App SDK are included, so nothing else needs to be installed on the target PC.
 An MSI with a higher `-Version` replaces the old installation. Your favorites are kept.
 The MSI is not digitally signed, so Windows SmartScreen may ask for confirmation the first time.
+
+To publish a release, push a version tag. The [Release workflow](.github/workflows/release.yml) builds the x64 and ARM64 installers and attaches them to a new GitHub release:
+
+```powershell
+git tag v1.1.0
+git push origin v1.1.0
+```
 
 ## Structure
 
