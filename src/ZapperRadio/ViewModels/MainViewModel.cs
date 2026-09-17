@@ -30,6 +30,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly Dictionary<string, IReadOnlyDictionary<string, int>> _popularityByCountry = new(StringComparer.OrdinalIgnoreCase);
     private readonly HttpClient _streamHttp;
     private readonly IcyProxy _proxy;
+    private readonly SoundClassifier? _classifier;
     private readonly RadioEngine _engine;
     private readonly DispatcherQueueTimer _searchDebounce;
     private readonly DispatcherQueueTimer _jumpListTimer;
@@ -68,7 +69,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _streamHttp.DefaultRequestHeaders.UserAgent.ParseAdd("ZapperRadio/1.0");
         _proxy = new IcyProxy(_streamHttp);
 
-        _engine = new RadioEngine(new StreamUrlResolver(_http), _proxy, new TrackDurations(_http), dispatcher) { Volume = Math.Clamp(_settings.Volume, 0, 1) };
+        _classifier = SoundClassifier.TryCreate(Path.Combine(AppContext.BaseDirectory, "Assets", "Models", "yamnet.onnx"));
+        _engine = new RadioEngine(new StreamUrlResolver(_http), _proxy, new TrackDurations(_http), _classifier, dispatcher) { Volume = Math.Clamp(_settings.Volume, 0, 1) };
         _engine.ActiveChanged += (_, _) => UpdateNowPlaying();
         _engine.StreamStatusChanged += (_, stream) => OnStreamStatusChanged(stream);
         _engine.StreamMetadataChanged += (_, stream) => OnStreamMetadataChanged(stream);
@@ -423,13 +425,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    private static ChannelState ChannelOf(StationStream stream) => stream switch
-    {
-        { IsInAdBreak: true } => ChannelState.Ad,
-        { Status: not StreamStatus.Live } => ChannelState.Unavailable,
-        { Metadata.Title: not null } => ChannelState.Song,
-        _ => ChannelState.Unknown,
-    };
+    private static ChannelState ChannelOf(StationStream stream) =>
+        Channel.StateOf(stream.IsInAdBreak, stream.Status == StreamStatus.Live, stream.Metadata?.Title is not null, stream.Sound);
 
     private async Task ApplySearchAsync()
     {
@@ -528,6 +525,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             if (_engine.Find(favorite.Station.Url) is { } stream)
             {
                 favorite.Status = stream.Status;
+                favorite.Sound = stream.Sound;
                 favorite.Song = SongTexts.For(stream);
             }
         }
@@ -620,8 +618,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         foreach (var favorite in Favorites.Where(f => f.Station.Url == stream.Station.Url))
         {
-            favorite.Song = SongTexts.For(stream);
-            ScheduleJumpListUpdate();
+            favorite.Sound = stream.Sound;
+            var song = SongTexts.For(stream);
+            if (favorite.Song != song)
+            {
+                favorite.Song = song;
+                ScheduleJumpListUpdate();
+            }
         }
 
         if (stream == _engine.Active)
@@ -656,7 +659,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         NowPlayingSong = SongTexts.For(active);
         NowPlayingTrack = active is { IsInAdBreak: false, Metadata.Title: { } title } ? title : null;
         IsNowPlayingTrackSaved = NowPlayingTrack is { } track && FavoriteTracks.Any(t => t.IsSameSong(track));
-        NowPlayingStatus = StatusTexts.For(active.Status, isActive: true)
+        NowPlayingStatus = StatusTexts.For(active.Status, isActive: true, active.Sound)
                            + (IsMuted ? " · muted" : "")
                            + (isFavorite ? "" : " · not a favorite, stream stops when switching")
                            + (active.Status is StreamStatus.Reconnecting or StreamStatus.Failed && active.LastError is { } error ? $" ({error})" : "");
@@ -693,6 +696,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _searchCts?.Cancel();
         _engine.Dispose();
         _proxy.Dispose();
+        _classifier?.Dispose();
         _streamHttp.Dispose();
         _http.Dispose();
     }

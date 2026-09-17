@@ -36,10 +36,23 @@ public class IcyProxyTests
         var titles = new List<string?>();
         var output = new MemoryStream();
 
-        await IcyProxy.RelayAsync(new MemoryStream(IcyStream(out var audio)), output, 4, m => titles.Add(m.Title), CancellationToken.None);
+        await IcyProxy.RelayAsync(new MemoryStream(IcyStream(out var audio)), output, 4, m => titles.Add(m.Title), null, CancellationToken.None);
 
         Assert.Equal(audio, output.ToArray());
         Assert.Equal(["First", "Second"], titles);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task RelayPassesTheAudioToListen(bool withMetadata)
+    {
+        var heard = new MemoryStream();
+        var source = withMetadata ? IcyStream(out var audio) : audio = "abcdefghij"u8.ToArray();
+
+        await IcyProxy.RelayAsync(new MemoryStream(source), new MemoryStream(), withMetadata ? 4 : 0, _ => { }, chunk => heard.Write(chunk.Span), CancellationToken.None);
+
+        Assert.Equal(audio, heard.ToArray());
     }
 
     [Fact]

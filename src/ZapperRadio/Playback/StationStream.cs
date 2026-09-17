@@ -1,6 +1,7 @@
 using Microsoft.UI.Dispatching;
 using Windows.Media.Core;
 using Windows.Media.Playback;
+using ZapperRadio.Core.Audio;
 using ZapperRadio.Core.Models;
 using ZapperRadio.Core.Streaming;
 
@@ -36,10 +37,16 @@ public sealed class StationStream : IDisposable
     /// </summary>
     private static readonly TimeSpan SongOverrun = TimeSpan.FromSeconds(30);
 
+    /// <summary>How long after the last classified window the stream still counts as listened to.</summary>
+    private static readonly TimeSpan ListeningTimeout = TimeSpan.FromSeconds(20);
+
     private readonly DispatcherQueue _dispatcher;
     private readonly StreamUrlResolver _resolver;
     private readonly IcyProxy? _proxy;
     private readonly TrackDurations? _durations;
+    private readonly SoundClassifier? _classifier;
+    private readonly SoundHistory _sound = new();
+    private readonly UnmarkedAdBreak _unmarkedAdBreak = new();
     private readonly MediaPlayer _player;
     private readonly DispatcherQueueTimer _watchdog;
     private readonly DispatcherQueueTimer _retryTimer;
@@ -47,6 +54,8 @@ public sealed class StationStream : IDisposable
     private CancellationTokenSource? _connectCts;
     private MediaSource? _source;
     private Uri? _relayUrl;
+    private SoundClassifier.Listener? _listener;
+    private DateTime _lastSoundUtc;
     private int _failedAttempts;
     private DateTime _lastPlayingUtc;
     private int _songNumber;
@@ -54,12 +63,14 @@ public sealed class StationStream : IDisposable
 
     /// <param name="proxy">Relays the stream to read its song titles; null plays the station directly.</param>
     /// <param name="durations">Looks up song lengths to recognize unmarked ad breaks; null relies on ad markers only.</param>
-    public StationStream(Station station, StreamUrlResolver resolver, IcyProxy? proxy, TrackDurations? durations, DispatcherQueue dispatcher, double volume)
+    /// <param name="classifier">Hears whether the relayed stream plays music or speech; null does not listen.</param>
+    public StationStream(Station station, StreamUrlResolver resolver, IcyProxy? proxy, TrackDurations? durations, SoundClassifier? classifier, DispatcherQueue dispatcher, double volume)
     {
         Station = station;
         _resolver = resolver;
         _proxy = proxy;
         _durations = durations;
+        _classifier = classifier;
         _dispatcher = dispatcher;
 
         _player = new MediaPlayer
@@ -106,10 +117,22 @@ public sealed class StationStream : IDisposable
     /// </summary>
     public bool IsSongOverdue { get; private set; }
 
-    /// <summary>True during an ad break the station marks, or one assumed from an overdue song.</summary>
-    public bool IsInAdBreak => Metadata?.IsAd == true || IsSongOverdue;
+    /// <summary>
+    /// True when the song is overdue and, if the stream is being listened to, speech is heard: an ad break the
+    /// station does not mark. Music without a new title is just a longer song or one the station sent no title for.
+    /// </summary>
+    public bool IsAssumedAdBreak => _unmarkedAdBreak.IsActive;
 
-    /// <summary>Raised when <see cref="Metadata"/> or <see cref="IsSongOverdue"/> changes.</summary>
+    /// <summary>True during an ad break the station marks, or an assumed one.</summary>
+    public bool IsInAdBreak => Metadata?.IsAd == true || IsAssumedAdBreak;
+
+    /// <summary>Whether the sound classifier heard this stream recently.</summary>
+    public bool IsListening => _listener is not null && DateTime.UtcNow - _lastSoundUtc < ListeningTimeout;
+
+    /// <summary>What the stream sounds like: music or speech. Unknown when it is not listened to or the sound is mixed.</summary>
+    public Sound Sound => IsListening ? _sound.Current : Sound.Unknown;
+
+    /// <summary>Raised when <see cref="Metadata"/>, <see cref="IsInAdBreak"/> or <see cref="Sound"/> changes.</summary>
     public event EventHandler? MetadataChanged;
 
     public bool IsMuted
@@ -171,6 +194,14 @@ public sealed class StationStream : IDisposable
         }
 
         Uri? relayUrl = null;
+        SoundClassifier.Listener? listener = null;
+        listener = _listener = _classifier?.Listen(sound => OnUiThread(() =>
+        {
+            if (_listener == listener)
+            {
+                AddSound(sound);
+            }
+        }));
         relayUrl = _relayUrl = _proxy.Register(uri, metadata => OnUiThread(() =>
         {
             // Ignore a relay that is being replaced by a new connection.
@@ -187,7 +218,7 @@ public sealed class StationStream : IDisposable
                     SetMetadata(metadata);
                 }
             }
-        }));
+        }), listener is null ? null : listener.Write);
         return relayUrl;
     }
 
@@ -204,8 +235,11 @@ public sealed class StationStream : IDisposable
             _songNumber++;
             _songEndTimer.Stop();
             IsSongOverdue = false;
+            // What the previous song or ad sounded like says nothing about the new one.
+            _sound.Clear();
         }
 
+        UpdateAssumedAdBreak();
         MetadataChanged?.Invoke(this, EventArgs.Empty);
 
         if (_durations is not null && metadata is { IsAd: false, Title: { } title })
@@ -241,9 +275,23 @@ public sealed class StationStream : IDisposable
         if (!IsSongOverdue)
         {
             IsSongOverdue = true;
+            UpdateAssumedAdBreak();
             MetadataChanged?.Invoke(this, EventArgs.Empty);
         }
     }
+
+    private void AddSound(Sound sound)
+    {
+        var before = Sound;
+        _lastSoundUtc = DateTime.UtcNow;
+        _sound.Add(sound);
+        if (UpdateAssumedAdBreak() | Sound != before)
+        {
+            MetadataChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    private bool UpdateAssumedAdBreak() => _unmarkedAdBreak.Update(IsSongOverdue, IsListening, _sound);
 
     private void ScheduleReconnect(string reason)
     {
@@ -343,6 +391,9 @@ public sealed class StationStream : IDisposable
             _proxy?.Unregister(_relayUrl);
             _relayUrl = null;
         }
+
+        _listener?.Dispose();
+        _listener = null;
 
         SetMetadata(null);
     }

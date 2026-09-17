@@ -1,3 +1,5 @@
+using ZapperRadio.Core.Audio;
+
 namespace ZapperRadio.Core.Playback;
 
 /// <summary>What a station stream is doing right now, as far as zapping is concerned.</summary>
@@ -9,14 +11,25 @@ public enum ChannelState
     /// <summary>In an ad break, marked by the station or assumed from an overdue song.</summary>
     Ad,
 
-    /// <summary>Playing, but without a title, so it is unknown what.</summary>
+    /// <summary>Playing, but it is unknown what: no title and no music heard, or a title while someone talks.</summary>
     Unknown,
 
-    /// <summary>Playing a title that is not an ad.</summary>
+    /// <summary>Playing a song: a title that is not an ad while no speech is heard, or music heard.</summary>
     Song,
 }
 
-public readonly record struct Channel(string Url, ChannelState State);
+public readonly record struct Channel(string Url, ChannelState State)
+{
+    /// <summary>
+    /// A title alone does not prove that a song is playing: some stations send program names, and presenters talk
+    /// between songs. What the stream sounds like therefore weighs in, and music counts as a song even without a title.
+    /// </summary>
+    public static ChannelState StateOf(bool isInAdBreak, bool isLive, bool hasTitle, Sound sound) =>
+        isInAdBreak ? ChannelState.Ad
+        : !isLive ? ChannelState.Unavailable
+        : sound == Sound.Music || (hasTitle && sound != Sound.Speech) ? ChannelState.Song
+        : ChannelState.Unknown;
+}
 
 /// <summary>
 /// Decides when to zap away from an ad break and when to zap back. When the station being listened to starts

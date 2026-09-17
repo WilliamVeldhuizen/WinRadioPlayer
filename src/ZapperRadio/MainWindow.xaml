@@ -76,7 +76,7 @@
                             Margin="0,4,0,0"
                             Content="Zapp on ad breaks"
                             IsChecked="{x:Bind ViewModel.ZappOnAdBreaks, Mode=TwoWay}"
-                            ToolTipService.ToolTip="When the station you are listening to starts an ad break, zap to the highest favorite that is playing a song, and zap back as soon as the break is over. Stations that do not mark their ads are assumed to be in an ad break when a song runs well past its length." />
+                            ToolTipService.ToolTip="When the station you are listening to starts an ad break, zap to the highest favorite that is playing a song, and zap back as soon as the break is over. Stations that do not mark their ads are assumed to be in an ad break when a song runs well past its length and speech is heard instead of music." />
                     </StackPanel>
 
                     <TextBlock

@@ -32,15 +32,16 @@ public sealed class IcyProxy : IDisposable
 
     /// <summary>
     /// Returns a local URL that relays <paramref name="upstream"/>. <paramref name="onMetadata"/> is called
-    /// on a background thread for every metadata block, until <see cref="Unregister"/> is called.
+    /// on a background thread for every metadata block, and <paramref name="onAudio"/> for every chunk of audio passed
+    /// on to the player (only valid during the call), until <see cref="Unregister"/> is called.
     /// </summary>
-    public Uri Register(Uri upstream, Action<IcyMetadata> onMetadata)
+    public Uri Register(Uri upstream, Action<IcyMetadata> onMetadata, Action<ReadOnlyMemory<byte>>? onAudio = null)
     {
         ObjectDisposedException.ThrowIf(_shutdown.IsCancellationRequested, this);
 
         var id = Guid.NewGuid().ToString("N");
         var listener = StartListener();
-        var registration = _registrations[id] = new Registration(upstream, onMetadata, listener);
+        var registration = _registrations[id] = new Registration(upstream, onMetadata, onAudio, listener);
         _ = AcceptLoopAsync(registration);
 
         // Keep the original file name, in case the player uses the extension as a format hint.
@@ -83,21 +84,18 @@ public sealed class IcyProxy : IDisposable
     /// <summary>
     /// Copies <paramref name="source"/> to <paramref name="audio"/> without the metadata blocks that
     /// follow every <paramref name="metaInterval"/> audio bytes (0 = no metadata), until the source ends.
+    /// <paramref name="onAudio"/> gets each chunk of audio as well, for example to listen to it.
     /// </summary>
     public static async Task RelayAsync(
-        Stream source, Stream audio, int metaInterval, Action<IcyMetadata> onMetadata, CancellationToken cancellationToken)
+        Stream source, Stream audio, int metaInterval, Action<IcyMetadata> onMetadata,
+        Action<ReadOnlyMemory<byte>>? onAudio, CancellationToken cancellationToken)
     {
-        if (metaInterval <= 0)
-        {
-            await source.CopyToAsync(audio, cancellationToken);
-            return;
-        }
-
         var buffer = new byte[16 * 1024];
         var metadata = new byte[255 * 16];
         while (true)
         {
-            for (var remaining = metaInterval; remaining > 0;)
+            // Without metadata the audio never pauses for a block.
+            for (var remaining = metaInterval > 0 ? metaInterval : int.MaxValue; remaining > 0;)
             {
                 var read = await source.ReadAsync(buffer.AsMemory(0, Math.Min(remaining, buffer.Length)), cancellationToken);
                 if (read == 0)
@@ -106,7 +104,11 @@ public sealed class IcyProxy : IDisposable
                 }
 
                 await audio.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
-                remaining -= read;
+                onAudio?.Invoke(buffer.AsMemory(0, read));
+                if (metaInterval > 0)
+                {
+                    remaining -= read;
+                }
             }
 
             if (await source.ReadAtLeastAsync(metadata.AsMemory(0, 1), 1, throwOnEndOfStream: false, cancellationToken) == 0)
@@ -212,7 +214,7 @@ public sealed class IcyProxy : IDisposable
                 }
 
                 await using var body = await response.Content.ReadAsStreamAsync(cts.Token);
-                await RelayAsync(body, network, metaInterval, registration.OnMetadata, cts.Token);
+                await RelayAsync(body, network, metaInterval, registration.OnMetadata, registration.OnAudio, cts.Token);
             }
         }
         catch (Exception ex) when (ex is IOException or SocketException or ObjectDisposedException
@@ -295,7 +297,7 @@ public sealed class IcyProxy : IDisposable
         _registrations.Clear();
     }
 
-    private sealed record Registration(Uri Upstream, Action<IcyMetadata> OnMetadata, TcpListener Listener)
+    private sealed record Registration(Uri Upstream, Action<IcyMetadata> OnMetadata, Action<ReadOnlyMemory<byte>>? OnAudio, TcpListener Listener)
     {
         public CancellationTokenSource Cancellation { get; } = new();
 
