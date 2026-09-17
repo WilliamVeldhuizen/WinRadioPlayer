@@ -23,6 +23,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly SettingsStore _settingsStore;
     private readonly AppSettings _settings;
     private readonly StationDirectory _directory;
+    private readonly StationPopularity _popularity;
+    private readonly Dictionary<string, IReadOnlyDictionary<string, int>> _popularityByCountry = new(StringComparer.OrdinalIgnoreCase);
     private readonly RadioEngine _engine;
     private readonly DispatcherQueueTimer _searchDebounce;
 
@@ -45,6 +47,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _settingsStore = new SettingsStore(Path.Combine(dataFolder, "settings.json"));
         _settings = _settingsStore.Load();
         _directory = new StationDirectory(_http, Path.Combine(dataFolder, "cache"));
+        _popularity = new StationPopularity(_http, Path.Combine(dataFolder, "cache"));
 
         _engine = new RadioEngine(new StreamUrlResolver(_http), dispatcher) { Volume = Math.Clamp(_settings.Volume, 0, 1) };
         _engine.ActiveChanged += (_, _) => UpdateNowPlaying();
@@ -117,6 +120,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         IsLoading = true;
+        _popularityByCountry.Clear();
         CatalogStatus = "Loading station list…";
         try
         {
@@ -235,14 +239,31 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         _searchCts?.Cancel();
         var cts = _searchCts = new CancellationTokenSource();
-        var filter = new StationFilter(SearchText, SelectedCountry == AllCountries ? null : SelectedCountry);
+        var country = SelectedCountry == AllCountries ? null : SelectedCountry;
+        var filter = new StationFilter(SearchText, country);
         var source = _allStations;
+
+        IReadOnlyDictionary<string, int>? ranks = null;
+        if (country is not null && !_popularityByCountry.TryGetValue(country, out ranks))
+        {
+            _ = LoadPopularityAsync(country);
+        }
 
         try
         {
             var results = filter.IsEmpty
                 ? source
-                : await Task.Run(() => source.Where(s => filter.Matches(s.Station)).ToList(), cts.Token);
+                : await Task.Run(() =>
+                {
+                    var matches = source.Where(s => filter.Matches(s.Station));
+                    // Within a country, the most popular stations come first; unranked ones keep name order.
+                    if (ranks is { Count: > 0 })
+                    {
+                        matches = matches.OrderBy(s => ranks.TryGetValue(s.Station.Url, out var rank) ? rank : int.MaxValue);
+                    }
+
+                    return matches.ToList();
+                }, cts.Token);
 
             if (!cts.IsCancellationRequested)
             {
@@ -251,6 +272,27 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (OperationCanceledException)
         {
+        }
+    }
+
+    private async Task LoadPopularityAsync(string country)
+    {
+        // Mark as loading so repeated searches don't start the same request again.
+        _popularityByCountry[country] = new Dictionary<string, int>();
+        try
+        {
+            _popularityByCountry[country] = await _popularity.GetRanksAsync(country);
+        }
+        catch (Exception)
+        {
+            // Popularity is a nice-to-have; without it the list stays sorted by name.
+            _popularityByCountry.Remove(country);
+            return;
+        }
+
+        if (string.Equals(SelectedCountry, country, StringComparison.OrdinalIgnoreCase))
+        {
+            await ApplySearchAsync();
         }
     }
 
