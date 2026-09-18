@@ -537,7 +537,7 @@
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
-            <Border Style="{StaticResource CardStyle}" Padding="10,8">
+            <Border x:Name="CompactNowPlaying" Style="{StaticResource CardStyle}" Padding="10,8">
                 <Grid ColumnSpacing="10">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -651,9 +651,10 @@
                 </Grid>
             </Border>
 
-            <Border Grid.Row="1" Style="{StaticResource CardStyle}">
+            <Border x:Name="CompactFavoritesCard" Grid.Row="1" Style="{StaticResource CardStyle}">
                 <Grid>
                     <TextBlock
+                        x:Name="CompactNoFavorites"
                         Margin="14"
                         Text="No favorites yet. Switch to the full window to search for stations and add them with the star."
                         TextWrapping="Wrap"
@@ -662,6 +663,7 @@
                         Visibility="{x:Bind ViewModel.HasNoFavorites, Mode=OneWay}" />
 
                     <ListView
+                        x:Name="CompactFavorites"
                         Padding="0,6"
                         ItemsSource="{x:Bind ViewModel.Favorites}"
                         ItemContainerStyle="{StaticResource CompactItemStyle}"

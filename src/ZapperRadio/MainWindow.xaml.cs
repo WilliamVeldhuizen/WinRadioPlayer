@@ -79,8 +79,11 @@ public sealed partial class MainWindow : Window
     private const int CompactWidth = 340;
     private const int CompactHeight = 520;
 
-    /// <summary>The shortest the compact window is ever fitted to, so a measurement that goes wrong cannot make it useless.</summary>
+    /// <summary>The shortest the compact window is ever fitted to, so a fit that goes wrong cannot make it useless.</summary>
     private const int CompactMinHeight = 200;
+
+    /// <summary>How tall one favorite is in the compact window, used until there is a row to ask.</summary>
+    private const double FavoriteRowHeight = 44;
 
     /// <summary>The text field inside the country box while it has focus.</summary>
     private TextBox? _countryText;
@@ -142,9 +145,10 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Fits the compact window around its favorites. The list is the only thing in that window that varies, so
-    /// there is a right height for it: empty space under the last favorite and a scrollbar hiding the last few
-    /// are both wrong. The width and the corner it sits in stay the ones it was left at.
+    /// Fits the compact window around its favorites, so that every one of them is visible. The list is the only
+    /// thing in that window that varies, so there is a right height for it: empty space under the last favorite
+    /// and a scrollbar hiding the last few are both wrong. The width and the corner it sits in stay the ones it
+    /// was left at, and a list taller than the screen is cut off by the screen rather than by the window.
     /// </summary>
     private void FitCompactWindow()
     {
@@ -161,11 +165,20 @@ public sealed partial class MainWindow : Window
 
         Root.UpdateLayout();
 
-        // Measured with all the height it could ask for, so what comes out is the room every favorite needs
-        // rather than the room the ones that happen to fit are given.
-        CompactView.Measure(new Windows.Foundation.Size(AppWindow.ClientSize.Width / Scale, double.PositiveInfinity));
-        var wanted = Root.RowDefinitions.Take(3).Sum(row => row.ActualHeight) + CompactView.DesiredSize.Height;
-        CompactView.InvalidateMeasure();
+        // The favorites are counted rather than measured. A ListView only lays out the rows that fit inside it,
+        // so asking one how tall it would like to be answers with the height it already has, which is the very
+        // thing being corrected here. One row is measured and the rest is arithmetic.
+        var row = CompactFavorites.ContainerFromIndex(0) as ListViewItem;
+        var rowHeight = row is { ActualHeight: > 0 } ? row.ActualHeight + row.Margin.Top + row.Margin.Bottom : FavoriteRowHeight;
+        var list = ViewModel.Favorites.Count > 0
+            ? (ViewModel.Favorites.Count * rowHeight) + CompactFavorites.Padding.Top + CompactFavorites.Padding.Bottom
+            : CompactNoFavorites.DesiredSize.Height;
+
+        var wanted = Root.RowDefinitions.Take(3).Sum(definition => definition.ActualHeight)
+            + CompactView.Padding.Top + CompactView.Padding.Bottom + CompactView.RowSpacing
+            + CompactNowPlaying.ActualHeight
+            + CompactFavoritesCard.BorderThickness.Top + CompactFavoritesCard.BorderThickness.Bottom
+            + list;
 
         var work = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Nearest).WorkArea;
         var chrome = AppWindow.Size.Height - AppWindow.ClientSize.Height;
