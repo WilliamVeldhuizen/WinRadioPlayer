@@ -38,12 +38,18 @@ public readonly record struct Channel(string Url, ChannelState State)
 /// <summary>
 /// Decides when to zap away from an ad break or speech and when to zap back. When the station being listened to
 /// starts an ad break or someone talks, it zaps to the highest favorite that plays a song (or else the highest one
-/// that at least plays something). As soon as the station zapped away from plays a song again, it zaps back.
-/// Picking a station yourself ends the zapping: that station stays on, even if it is in a break right then.
+/// that at least plays something). It zaps back once the station zapped away from plays a song again, but never in
+/// the middle of one: as long as the station it landed on plays music, that music is what you came for, so the
+/// return waits for that station's own break. Picking a station yourself ends the zapping: that station stays on,
+/// even if it is in a break right then.
 /// </summary>
 public sealed class AdBreakZapper
 {
-    /// <summary>Ad breaks rarely last this long; after that, returning would only interrupt the station you ended up on.</summary>
+    /// <summary>
+    /// How long the station zapped away from is watched for. Ad breaks rarely last this long, and by the time it
+    /// has passed you have been listening to the station you ended up on for a while, so going back to another one
+    /// would be the surprise rather than the relief.
+    /// </summary>
     public static readonly TimeSpan MaxAdBreak = TimeSpan.FromMinutes(10);
 
     private DateTimeOffset _zappedAt;
@@ -85,8 +91,9 @@ public sealed class AdBreakZapper
             {
                 ZappedFrom = null;
             }
-            else if (StateOf(origin, active, favorites) == ChannelState.Song)
+            else if (StateOf(origin, active, favorites) == ChannelState.Song && active.State != ChannelState.Song)
             {
+                // The station it was zapped to has reached its own break, so going back interrupts nothing.
                 ZappedFrom = null;
                 return origin;
             }

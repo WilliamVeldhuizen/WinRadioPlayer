@@ -61,9 +61,44 @@ public class AdBreakZapperTests
         Assert.Null(zapper.Next(Song("b"), [Ad("a"), Song("b")], Now.AddMinutes(1)));
         // Between the ads and the next song, some stations send an empty title.
         Assert.Null(zapper.Next(Song("b"), [Unknown("a"), Song("b")], Now.AddMinutes(2)));
-        Assert.Equal("a", zapper.Next(Song("b"), [Song("a"), Song("b")], Now.AddMinutes(3)));
+        Assert.Equal("a", zapper.Next(Ad("b"), [Song("a"), Ad("b")], Now.AddMinutes(3)));
         Assert.Null(zapper.ZappedFrom);
         Assert.Null(zapper.Next(Song("a"), [Song("a"), Song("b")], Now.AddMinutes(3)));
+    }
+
+    [Fact]
+    public void DoesNotZapBackWhileTheStationItLandedOnPlaysASong()
+    {
+        var zapper = new AdBreakZapper();
+        zapper.Next(Ad("a"), [Ad("a"), Song("b")], Now);
+
+        // The break on "a" is over, but "b" is halfway through a song: going back now would cut it off.
+        Assert.Null(zapper.Next(Song("b"), [Song("a"), Song("b")], Now.AddMinutes(1)));
+        Assert.Null(zapper.Next(Song("b"), [Song("a"), Song("b")], Now.AddMinutes(2)));
+        Assert.Equal("a", zapper.ZappedFrom);
+    }
+
+    [Fact]
+    public void ZapsBackOnceTheSongItLandedOnIsOver()
+    {
+        var zapper = new AdBreakZapper();
+        zapper.Next(Ad("a"), [Ad("a"), Song("b")], Now);
+
+        Assert.Null(zapper.Next(Song("b"), [Song("a"), Song("b")], Now.AddMinutes(1)));
+        // "b" starts talking, which is the moment to go back to the station that was picked.
+        Assert.Equal("a", zapper.Next(Speech("b"), [Song("a"), Speech("b")], Now.AddMinutes(2)));
+        Assert.Null(zapper.ZappedFrom);
+    }
+
+    [Fact]
+    public void DoesNotZapBackToAStationThatIsInABreakItself()
+    {
+        var zapper = new AdBreakZapper();
+        zapper.Next(Ad("a"), [Ad("a"), Song("b"), Song("c")], Now);
+
+        // "b" is done with its song, but "a" is back in the ads, so it zaps on instead of back.
+        Assert.Equal("c", zapper.Next(Ad("b"), [Ad("a"), Ad("b"), Song("c")], Now.AddMinutes(1)));
+        Assert.Equal("a", zapper.ZappedFrom);
     }
 
     [Fact]
@@ -73,7 +108,7 @@ public class AdBreakZapperTests
 
         Assert.Equal("c", zapper.Next(Speech("a"), [Speech("a"), Speech("b"), Song("c")], Now));
         Assert.Null(zapper.Next(Song("c"), [Speech("a"), Speech("b"), Song("c")], Now.AddMinutes(1)));
-        Assert.Equal("a", zapper.Next(Song("c"), [Song("a"), Speech("b"), Song("c")], Now.AddMinutes(2)));
+        Assert.Equal("a", zapper.Next(Speech("c"), [Song("a"), Speech("b"), Speech("c")], Now.AddMinutes(2)));
     }
 
     [Fact]
@@ -83,7 +118,7 @@ public class AdBreakZapperTests
         zapper.Next(Ad("a"), [Ad("a"), Song("b"), Song("c")], Now);
 
         Assert.Equal("c", zapper.Next(Ad("b"), [Ad("a"), Ad("b"), Song("c")], Now.AddMinutes(1)));
-        Assert.Equal("a", zapper.Next(Song("c"), [Song("a"), Ad("b"), Song("c")], Now.AddMinutes(2)));
+        Assert.Equal("a", zapper.Next(Ad("c"), [Song("a"), Ad("b"), Ad("c")], Now.AddMinutes(2)));
     }
 
     [Fact]
@@ -92,7 +127,10 @@ public class AdBreakZapperTests
         var zapper = new AdBreakZapper();
         zapper.Next(Ad("a"), [Ad("a"), Song("b")], Now);
 
+        // One song after another on "b", so the moment to return never comes and the break is given up on.
+        Assert.Null(zapper.Next(Song("b"), [Song("a"), Song("b")], Now.AddMinutes(1)));
         Assert.Null(zapper.Next(Song("b"), [Song("a"), Song("b")], Now + AdBreakZapper.MaxAdBreak + TimeSpan.FromSeconds(1)));
+        Assert.Null(zapper.ZappedFrom);
     }
 
     [Fact]
