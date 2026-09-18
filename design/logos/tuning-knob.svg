@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" role="img" aria-label="ZapperRadio - Tuning Knob">
+<title>ZapperRadio - Tuning Knob</title>
+<circle cx="32" cy="32" r="19" fill="none" stroke="#131A26" stroke-width="4"/>
+<g stroke="#131A26" stroke-width="2.8" stroke-linecap="round" opacity=".4"><path d="M19.00 54.52L17.00 57.98"/><path d="M7.98 41.95L4.28 43.48"/><path d="M6.89 25.27L3.02 24.24"/><path d="M16.17 11.37L13.74 8.20"/><path d="M32.00 6.00L32.00 2.00"/><path d="M47.83 11.37L50.26 8.20"/><path d="M57.11 25.27L60.98 24.24"/><path d="M56.02 41.95L59.72 43.48"/><path d="M45.00 54.52L47.00 57.98"/></g>
+<path d="M32 15V25" fill="none" stroke="#F2A93B" stroke-width="4.5" stroke-linecap="round"/>
+<circle cx="32" cy="32" r="3.5" fill="#131A26"/>
+</svg>

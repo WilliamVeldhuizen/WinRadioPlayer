@@ -49,7 +49,14 @@
 
             <!-- Only this part is the drag area, so the button beside it keeps receiving clicks. -->
             <StackPanel x:Name="TitleBarDragArea" Background="Transparent" Orientation="Horizontal" Spacing="10">
-                <FontIcon Glyph="&#xE93E;" FontSize="16" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                <!-- The Z-bolt of the app icon. The broadcast arcs around it only crowd the Z at this size, so they are left to the larger icon frames. -->
+                <Viewbox Width="20" Height="20" VerticalAlignment="Center">
+                    <Path
+                        Data="M42,8 L24,8 L24,15 L32,15 L23,56 L41,56 L41,49 L33,49 Z"
+                        Fill="{ThemeResource ZapperMarkBrush}"
+                        Width="64" Height="64"
+                        Stretch="None" />
+                </Viewbox>
                 <TextBlock Text="ZapperRadio" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" />
             </StackPanel>
 

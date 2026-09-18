@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" role="img" aria-label="ZapperRadio - Zap Button">
+<title>ZapperRadio - Zap Button</title>
+<circle cx="32" cy="32" r="24" fill="#131A26"/>
+<path d="M26 21 L45 32 L26 43 Z" fill="#FFFFFF"/>
+<path d="M32 3A29 29 0 0 1 59 21" fill="none" stroke="#F2A93B" stroke-width="4.5" stroke-linecap="round"/>
+</svg>

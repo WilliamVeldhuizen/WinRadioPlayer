@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" role="img" aria-label="ZapperRadio - Quick Swap">
+<title>ZapperRadio - Quick Swap</title>
+<path d="M13 28a19 19 0 0 1 30-7" fill="none" stroke="#131A26" stroke-width="4" stroke-linecap="round"/>
+<path d="M47 23 L36 22 L41 12 Z" fill="#131A26"/>
+<path d="M51 36a19 19 0 0 1-30 7" fill="none" stroke="#F2A93B" stroke-width="4" stroke-linecap="round"/>
+<path d="M17 41 L28 42 L23 52 Z" fill="#F2A93B"/>
+<circle cx="32" cy="32" r="4.5" fill="#131A26"/>
+</svg>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" role="img" aria-label="ZapperRadio - Signal Stack">
+<title>ZapperRadio - Signal Stack</title>
+<g fill="#131A26" opacity=".28">
+<rect x="9" y="11" width="46" height="8" rx="4"/>
+<rect x="9" y="27" width="34" height="8" rx="4"/>
+<rect x="9" y="45" width="41" height="8" rx="4"/></g>
+<rect x="9" y="27" width="34" height="8" rx="4" fill="none"/>
+<rect x="9" y="27" width="46" height="8" rx="4" fill="#F2A93B"/>
+<path d="M50 20 L58 31 L50 42 Z" fill="none"/>
+</svg>

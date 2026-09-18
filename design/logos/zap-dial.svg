@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" role="img" aria-label="ZapperRadio - Zap Dial">
+<title>ZapperRadio - Zap Dial</title>
+<circle cx="32" cy="32" r="25" fill="none" stroke="#131A26" stroke-width="3.5"/>
+<g stroke="#131A26" stroke-width="2.6" stroke-linecap="round" opacity=".4"><path d="M50.00 32.00L53.50 32.00"/><path d="M47.59 41.00L50.62 42.75"/><path d="M41.00 47.59L42.75 50.62"/><path d="M32.00 50.00L32.00 53.50"/><path d="M23.00 47.59L21.25 50.62"/><path d="M16.41 41.00L13.38 42.75"/><path d="M14.00 32.00L10.50 32.00"/><path d="M16.41 23.00L13.38 21.25"/><path d="M23.00 16.41L21.25 13.38"/><path d="M32.00 14.00L32.00 10.50"/><path d="M41.00 16.41L42.75 13.38"/><path d="M47.59 23.00L50.62 21.25"/></g>
+<path transform="translate(12.80,12.80) scale(0.6)" d="M37 9 L23 35 L31 35 L27 55 L41 29 L33 29 Z" fill="#F2A93B"/>
+</svg>

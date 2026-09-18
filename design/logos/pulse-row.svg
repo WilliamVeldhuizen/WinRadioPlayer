@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" role="img" aria-label="ZapperRadio - Pulse Row">
+<title>ZapperRadio - Pulse Row</title>
+<g fill="#131A26" opacity=".45"><circle cx="8" cy="32" r="3"/><circle cx="19" cy="32" r="4.5"/><circle cx="45" cy="32" r="4.5"/><circle cx="56" cy="32" r="3"/></g>
+<circle cx="32" cy="32" r="8" fill="#F2A93B"/>
+<g fill="none" stroke="#131A26" stroke-width="3" stroke-linecap="round" opacity=".45">
+<path d="M21 18a18 18 0 0 1 22 0"/><path d="M21 46a18 18 0 0 0 22 0"/></g>
+</svg>

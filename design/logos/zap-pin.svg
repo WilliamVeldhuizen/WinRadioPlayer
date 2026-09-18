@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" role="img" aria-label="ZapperRadio - Zap Pin">
+<title>ZapperRadio - Zap Pin</title>
+<path d="M32 5c-10.5 0-19 8.3-19 18.6C13 36.5 32 58 32 58s19-21.5 19-34.4C51 13.3 42.5 5 32 5z" fill="#131A26"/>
+<path transform="translate(16.00,8.00) scale(0.5)" d="M37 9 L23 35 L31 35 L27 55 L41 29 L33 29 Z" fill="#FFFFFF"/>
+<g fill="none" stroke="#F2A93B" stroke-width="3" stroke-linecap="round">
+<path d="M7 17a15 15 0 0 0 0 14"/><path d="M57 17a15 15 0 0 1 0 14"/></g>
+</svg>
