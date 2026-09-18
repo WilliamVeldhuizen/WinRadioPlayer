@@ -8,6 +8,9 @@
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
             </ResourceDictionary.MergedDictionaries>
+            <!-- The settings dialog is wider than the 548 a ContentDialog allows by default, which would clip it. -->
+            <x:Double x:Key="ContentDialogMaxWidth">640</x:Double>
+
             <ResourceDictionary.ThemeDictionaries>
                 <!-- The zap amber of the logo. A little deeper on a light background, where the lighter amber goes pale. -->
                 <ResourceDictionary x:Key="Light">

@@ -779,92 +779,101 @@
             Title="Settings"
             CloseButtonText="Close"
             DefaultButton="Close">
-            <StackPanel Width="380" Spacing="18">
-                <StackPanel Spacing="2">
-                    <TextBlock Text="About" Style="{StaticResource BodyStrongTextBlockStyle}" />
-                    <TextBlock
-                        Text="{x:Bind local:UiHelpers.AboutVersion(ViewModel.AppVersion)}"
-                        Style="{StaticResource CaptionTextBlockStyle}"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    <TextBlock
-                        Text="Internet radio that keeps the streams of your favorites open, so switching is instant and you do not hear the ad a station plays when you connect."
-                        Style="{StaticResource CaptionTextBlockStyle}"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        TextWrapping="Wrap" />
-                    <!-- Aligned with the text above it, past the padding a button draws around its content. -->
-                    <HyperlinkButton
-                        Margin="-12,2,0,0"
-                        Content="ZapperRadio on GitHub"
-                        NavigateUri="https://github.com/WilliamVeldhuizen/ZapperRadio" />
-                </StackPanel>
+            <ContentDialog.Resources>
+                <!-- The settings are mostly explanation, so their text is set a step smaller than the rest of
+                     the app. With the wider dialog that keeps every section readable and on screen at once. -->
+                <Style x:Key="SettingsHeadingStyle" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
+                    <Setter Property="FontSize" Value="13" />
+                </Style>
+                <Style x:Key="SettingsTextStyle" TargetType="TextBlock" BasedOn="{StaticResource CaptionTextBlockStyle}">
+                    <Setter Property="FontSize" Value="11" />
+                    <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <Setter Property="TextWrapping" Value="Wrap" />
+                </Style>
+                <Style x:Key="SettingsButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+                    <Setter Property="FontSize" Value="12" />
+                    <Setter Property="Padding" Value="11,4" />
+                    <Setter Property="Margin" Value="0,8,0,0" />
+                </Style>
+            </ContentDialog.Resources>
 
-                <StackPanel Spacing="2">
-                    <TextBlock Text="Station list" Style="{StaticResource BodyStrongTextBlockStyle}" />
-                    <TextBlock
-                        Text="{x:Bind ViewModel.StationListName, Mode=OneWay}"
-                        Style="{StaticResource CaptionTextBlockStyle}"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        TextTrimming="CharacterEllipsis" />
-                    <TextBlock
-                        Text="{x:Bind ViewModel.CatalogStatus, Mode=OneWay}"
-                        Style="{StaticResource CaptionTextBlockStyle}"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        TextWrapping="Wrap" />
-                    <TextBlock
-                        Text="{x:Bind ViewModel.StationListUpdated, Mode=OneWay}"
-                        Style="{StaticResource CaptionTextBlockStyle}"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    <Button
-                        Margin="0,8,0,0"
-                        Content="Check for a newer list"
-                        Command="{x:Bind ViewModel.ReloadCatalogCommand}" />
-                </StackPanel>
+            <!-- Scrolls rather than clips, for a short window or a large text size. -->
+            <ScrollViewer MaxHeight="520" HorizontalScrollMode="Disabled" VerticalScrollBarVisibility="Auto">
+                <StackPanel Width="520" Spacing="18">
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="About" Style="{StaticResource SettingsHeadingStyle}" />
+                        <TextBlock
+                            Text="{x:Bind local:UiHelpers.AboutVersion(ViewModel.AppVersion)}"
+                            Style="{StaticResource SettingsTextStyle}" />
+                        <TextBlock
+                            Text="Internet radio that keeps the streams of your favorites open, so switching is instant and you do not hear the ad a station plays when you connect."
+                            Style="{StaticResource SettingsTextStyle}" />
+                        <!-- Aligned with the text above it, past the padding a button draws around its content. -->
+                        <HyperlinkButton
+                            Margin="-12,2,0,0"
+                            FontSize="12"
+                            Content="ZapperRadio on GitHub"
+                            NavigateUri="https://github.com/WilliamVeldhuizen/ZapperRadio" />
+                    </StackPanel>
 
-                <StackPanel Spacing="2">
-                    <TextBlock Text="Shortcuts" Style="{StaticResource BodyStrongTextBlockStyle}" />
-                    <TextBlock
-                        Text="In the window: Ctrl+Space to stop or play, Ctrl+M to mute, Ctrl+F to search. The play, pause and next buttons of the Windows volume flyout, the lock screen, your media keys and your headset work too, where next and previous move through the favorites."
-                        Style="{StaticResource CaptionTextBlockStyle}"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        TextWrapping="Wrap" />
-                    <CheckBox
-                        Margin="0,6,0,0"
-                        Content="Shortcuts from any app"
-                        IsChecked="{x:Bind ViewModel.GlobalHotkeys, Mode=TwoWay}"
-                        ToolTipService.ToolTip="Also while you are working in another app. On Ctrl+Alt rather than Ctrl, because claiming Ctrl+Space for this app would take it away from every other one. A combination another app already holds is left to it and named below." />
-                    <TextBlock
-                        Margin="28,0,0,0"
-                        Text="Ctrl+Alt+P to stop or play, Ctrl+Alt+M to mute, Ctrl+Alt+Right and Ctrl+Alt+Left for the next and previous favorite, from whatever app you are working in."
-                        Style="{StaticResource CaptionTextBlockStyle}"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        TextWrapping="Wrap" />
-                    <TextBlock
-                        Margin="28,2,0,0"
-                        Text="{x:Bind ViewModel.GlobalHotkeyStatus, Mode=OneWay}"
-                        Visibility="{x:Bind ViewModel.HasGlobalHotkeyProblem, Mode=OneWay}"
-                        Style="{StaticResource CaptionTextBlockStyle}"
-                        Foreground="{ThemeResource SystemFillColorCautionBrush}"
-                        TextWrapping="Wrap" />
-                </StackPanel>
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="Station list" Style="{StaticResource SettingsHeadingStyle}" />
+                        <TextBlock
+                            Text="{x:Bind ViewModel.StationListName, Mode=OneWay}"
+                            Style="{StaticResource SettingsTextStyle}"
+                            TextWrapping="NoWrap"
+                            TextTrimming="CharacterEllipsis" />
+                        <TextBlock
+                            Text="{x:Bind ViewModel.CatalogStatus, Mode=OneWay}"
+                            Style="{StaticResource SettingsTextStyle}" />
+                        <TextBlock
+                            Text="{x:Bind ViewModel.StationListUpdated, Mode=OneWay}"
+                            Style="{StaticResource SettingsTextStyle}" />
+                        <Button
+                            Style="{StaticResource SettingsButtonStyle}"
+                            Content="Check for a newer list"
+                            Command="{x:Bind ViewModel.ReloadCatalogCommand}" />
+                    </StackPanel>
 
-                <StackPanel Spacing="2">
-                    <TextBlock Text="Cached logos" Style="{StaticResource BodyStrongTextBlockStyle}" />
-                    <TextBlock
-                        Text="Station logos and the most-played lists are looked up once and then kept. Clearing them looks every logo up again, which helps when a station shows the wrong one. The station list itself is kept."
-                        Style="{StaticResource CaptionTextBlockStyle}"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        TextWrapping="Wrap" />
-                    <TextBlock
-                        Margin="0,4,0,0"
-                        Text="{x:Bind ViewModel.CacheSummary, Mode=OneWay}"
-                        Style="{StaticResource CaptionTextBlockStyle}"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    <Button
-                        Margin="0,8,0,0"
-                        Content="Clear cache"
-                        Command="{x:Bind ViewModel.ClearCacheCommand}" />
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="Shortcuts" Style="{StaticResource SettingsHeadingStyle}" />
+                        <TextBlock
+                            Text="In the window: Ctrl+Space to stop or play, Ctrl+M to mute, Ctrl+F to search. The play, pause and next buttons of the Windows volume flyout, the lock screen, your media keys and your headset work too, where next and previous move through the favorites."
+                            Style="{StaticResource SettingsTextStyle}" />
+                        <CheckBox
+                            Margin="0,6,0,0"
+                            FontSize="12"
+                            Content="Shortcuts from any app"
+                            IsChecked="{x:Bind ViewModel.GlobalHotkeys, Mode=TwoWay}"
+                            ToolTipService.ToolTip="Also while you are working in another app. On Ctrl+Alt rather than Ctrl, because claiming Ctrl+Space for this app would take it away from every other one. A combination another app already holds is left to it and named below." />
+                        <TextBlock
+                            Margin="28,0,0,0"
+                            Text="Ctrl+Alt+P to stop or play, Ctrl+Alt+M to mute, Ctrl+Alt+Right and Ctrl+Alt+Left for the next and previous favorite, from whatever app you are working in."
+                            Style="{StaticResource SettingsTextStyle}" />
+                        <TextBlock
+                            Margin="28,2,0,0"
+                            Text="{x:Bind ViewModel.GlobalHotkeyStatus, Mode=OneWay}"
+                            Visibility="{x:Bind ViewModel.HasGlobalHotkeyProblem, Mode=OneWay}"
+                            Style="{StaticResource SettingsTextStyle}"
+                            Foreground="{ThemeResource SystemFillColorCautionBrush}" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="Cached logos" Style="{StaticResource SettingsHeadingStyle}" />
+                        <TextBlock
+                            Text="Station logos and the most-played lists are looked up once and then kept. Clearing them looks every logo up again, which helps when a station shows the wrong one. The station list itself is kept."
+                            Style="{StaticResource SettingsTextStyle}" />
+                        <TextBlock
+                            Margin="0,4,0,0"
+                            Text="{x:Bind ViewModel.CacheSummary, Mode=OneWay}"
+                            Style="{StaticResource SettingsTextStyle}" />
+                        <Button
+                            Style="{StaticResource SettingsButtonStyle}"
+                            Content="Clear cache"
+                            Command="{x:Bind ViewModel.ClearCacheCommand}" />
+                    </StackPanel>
                 </StackPanel>
-            </StackPanel>
+            </ScrollViewer>
         </ContentDialog>
     </Grid>
 </Window>
