@@ -8,10 +8,10 @@ Internet radio for Windows (.NET 10 + WinUI 3 / Windows App SDK).
 
 Windows 10 (version 2004) or later:
 
-- [**ZapperRadio-x64.msi**](https://github.com/WilliamVeldhuizen/WinRadioPlayer/releases/latest/download/ZapperRadio-x64.msi) for most PCs
-- [ZapperRadio-arm64.msi](https://github.com/WilliamVeldhuizen/WinRadioPlayer/releases/latest/download/ZapperRadio-arm64.msi) for ARM devices (e.g. Snapdragon laptops)
+- [**ZapperRadio-x64.msi**](https://github.com/WilliamVeldhuizen/ZapperRadio/releases/latest/download/ZapperRadio-x64.msi) for most PCs
+- [ZapperRadio-arm64.msi](https://github.com/WilliamVeldhuizen/ZapperRadio/releases/latest/download/ZapperRadio-arm64.msi) for ARM devices (e.g. Snapdragon laptops)
 
-All versions are on the [Releases](https://github.com/WilliamVeldhuizen/WinRadioPlayer/releases) page. The installer is not digitally signed, so Windows SmartScreen may warn you: choose **More info** → **Run anyway**.
+All versions are on the [Releases](https://github.com/WilliamVeldhuizen/ZapperRadio/releases) page. The installer is not digitally signed, so Windows SmartScreen may warn you: choose **More info** → **Run anyway**.
 
 ## Why
 
