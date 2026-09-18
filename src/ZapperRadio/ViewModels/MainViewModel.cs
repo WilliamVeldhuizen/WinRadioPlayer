@@ -168,6 +168,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         NormalizeLoudness = _settings.NormalizeLoudness;
         GlobalHotkeys = _settings.GlobalHotkeys;
         IsCompact = _settings.IsCompact;
+        // Read from the registry rather than settings.json: it also picks up a change made from
+        // Windows' own Startup Apps settings instead of from here.
+        AutoStart = StartupRegistration.IsEnabled();
     }
 
     /// <summary>
@@ -308,6 +311,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>Whether the Ctrl+Alt shortcuts also work while another app has focus.</summary>
     [ObservableProperty]
     public partial bool GlobalHotkeys { get; set; }
+
+    /// <summary>Whether ZapperRadio launches when the user signs in to Windows.</summary>
+    [ObservableProperty]
+    public partial bool AutoStart { get; set; }
 
     /// <summary>Which of the global shortcuts another app already holds, or empty when they all work.</summary>
     [ObservableProperty]
@@ -813,6 +820,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _settings.GlobalHotkeys = value;
         SaveSettings();
     }
+
+    partial void OnAutoStartChanged(bool value) => StartupRegistration.SetEnabled(value);
 
     partial void OnNormalizeLoudnessChanged(bool value)
     {

@@ -885,6 +885,14 @@
             <ScrollViewer MaxHeight="520" HorizontalScrollMode="Disabled" VerticalScrollBarVisibility="Auto">
                 <StackPanel Width="520" Spacing="18">
                     <StackPanel Spacing="2">
+                        <TextBlock Text="Startup" Style="{StaticResource SettingsHeadingStyle}" />
+                        <CheckBox
+                            FontSize="12"
+                            Content="Start ZapperRadio when Windows starts"
+                            IsChecked="{x:Bind ViewModel.AutoStart, Mode=TwoWay}" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="2">
                         <TextBlock Text="About" Style="{StaticResource SettingsHeadingStyle}" />
                         <TextBlock
                             Text="{x:Bind local:UiHelpers.AboutVersion(ViewModel.AppVersion)}"
