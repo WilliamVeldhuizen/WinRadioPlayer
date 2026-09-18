@@ -8,7 +8,8 @@ using ZapperRadio.Core.Audio;
 namespace ZapperRadio.Playback;
 
 /// <summary>
-/// Hears whether streams play music or speech, with YAMNet, Google's sound classifier (see Assets/Models).
+/// Hears whether streams play music or speech, with YAMNet, Google's sound classifier (see Assets/Models),
+/// and how loud they are, with <see cref="Loudness"/>.
 /// Each stream's audio is taken from the relay as it is passed to the player, so it costs no extra bandwidth.
 /// Every 5 seconds of it is decoded and classified, one stream at a time on a single background thread,
 /// which takes about 20 ms per stream.
@@ -55,12 +56,12 @@ public sealed class SoundClassifier : IDisposable
     }
 
     /// <summary>
-    /// Starts listening to a stream: write its audio to the listener, and <paramref name="onSound"/> is called on a
-    /// background thread with the sound of every window. Dispose the listener to stop.
+    /// Starts listening to a stream: write its audio to the listener, and <paramref name="onWindow"/> is called on a
+    /// background thread with the sound and the loudness of every window. Dispose the listener to stop.
     /// </summary>
-    public Listener Listen(Action<Sound> onSound)
+    public Listener Listen(Action<SoundWindow> onWindow)
     {
-        var listener = new Listener(this, onSound);
+        var listener = new Listener(this, onWindow);
         lock (_listeners)
         {
             _listeners.Add(listener);
@@ -92,7 +93,11 @@ public sealed class SoundClassifier : IDisposable
 
                     try
                     {
-                        listener.Report(Classify(Decode(audio)));
+                        var samples = Decode(audio);
+                        var sound = Classify(samples);
+                        // Only the music of a station says how loud it is mastered, so nothing else is measured.
+                        var loudness = sound == Sound.Music ? Loudness.Measure(samples, SampleRate) : null;
+                        listener.Report(new SoundWindow(sound, loudness));
                     }
                     catch (Exception)
                     {
@@ -168,16 +173,16 @@ public sealed class SoundClassifier : IDisposable
     public sealed class Listener : IDisposable
     {
         private readonly SoundClassifier _owner;
-        private readonly Action<Sound> _onSound;
+        private readonly Action<SoundWindow> _onWindow;
         private readonly Lock _gate = new();
         private MemoryStream _audio = new();
         private DateTime _windowStartUtc = DateTime.UtcNow;
         private bool _disposed;
 
-        internal Listener(SoundClassifier owner, Action<Sound> onSound)
+        internal Listener(SoundClassifier owner, Action<SoundWindow> onWindow)
         {
             _owner = owner;
-            _onSound = onSound;
+            _onWindow = onWindow;
         }
 
         internal bool IsDue
@@ -221,7 +226,7 @@ public sealed class SoundClassifier : IDisposable
             }
         }
 
-        internal void Report(Sound sound)
+        internal void Report(SoundWindow window)
         {
             lock (_gate)
             {
@@ -231,7 +236,7 @@ public sealed class SoundClassifier : IDisposable
                 }
             }
 
-            _onSound(sound);
+            _onWindow(window);
         }
 
         public void Dispose()

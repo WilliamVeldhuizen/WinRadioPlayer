@@ -12,9 +12,12 @@ namespace ZapperRadio.Playback;
 public sealed class RadioEngine(StreamUrlResolver resolver, IcyProxy? proxy, TrackDurations? durations, SoundClassifier? classifier, DispatcherQueue dispatcher) : IDisposable
 {
     private readonly Dictionary<string, StationStream> _favorites = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, double> _trims = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, double> _knownLoudness = new(StringComparer.Ordinal);
     private StationStream? _transient;
     private double _volume = 0.8;
     private bool _isMuted;
+    private bool _normalizeLoudness = true;
 
     public StationStream? Active { get; private set; }
 
@@ -23,6 +26,8 @@ public sealed class RadioEngine(StreamUrlResolver resolver, IcyProxy? proxy, Tra
     public event EventHandler<StationStream>? StreamStatusChanged;
 
     public event EventHandler<StationStream>? StreamMetadataChanged;
+
+    public event EventHandler<StationStream>? StreamLoudnessChanged;
 
     public double Volume
     {
@@ -36,6 +41,36 @@ public sealed class RadioEngine(StreamUrlResolver resolver, IcyProxy? proxy, Tra
             }
         }
     }
+
+    /// <summary>Whether every station is brought to the same loudness, so switching does not change the volume.</summary>
+    public bool NormalizeLoudness
+    {
+        get => _normalizeLoudness;
+        set
+        {
+            _normalizeLoudness = value;
+            foreach (var stream in AllStreams())
+            {
+                stream.NormalizeLoudness = value;
+            }
+        }
+    }
+
+    /// <summary>Sets the manual correction of a station in decibels; it is remembered for a stream that does not exist yet.</summary>
+    public void SetTrim(string url, double trimDb)
+    {
+        _trims[url] = trimDb;
+        if (Find(url) is { } stream)
+        {
+            stream.TrimDb = trimDb;
+        }
+    }
+
+    /// <summary>
+    /// Hands a station the loudness measured for it in an earlier run. It applies to the streams opened from here on,
+    /// because a stream that is already running is measuring for itself.
+    /// </summary>
+    public void SetKnownLoudness(string url, double loudness) => _knownLoudness[url] = loudness;
 
     /// <summary>Silences the station being listened to, also after switching, without stopping it.</summary>
     public bool IsMuted
@@ -142,9 +177,19 @@ public sealed class RadioEngine(StreamUrlResolver resolver, IcyProxy? proxy, Tra
 
     private StationStream CreateAndStart(Station station)
     {
-        var stream = new StationStream(station, resolver, proxy, durations, classifier, dispatcher, _volume);
+        var stream = new StationStream(station, resolver, proxy, durations, classifier, dispatcher, _volume)
+        {
+            NormalizeLoudness = _normalizeLoudness,
+            TrimDb = _trims.GetValueOrDefault(station.Url),
+        };
+        if (_knownLoudness.TryGetValue(station.Url, out var loudness))
+        {
+            stream.SeedLoudness(loudness);
+        }
+
         stream.StatusChanged += OnStreamStatusChanged;
         stream.MetadataChanged += OnStreamMetadataChanged;
+        stream.LoudnessChanged += OnStreamLoudnessChanged;
         stream.Start();
         return stream;
     }
@@ -153,6 +198,7 @@ public sealed class RadioEngine(StreamUrlResolver resolver, IcyProxy? proxy, Tra
     {
         stream.StatusChanged -= OnStreamStatusChanged;
         stream.MetadataChanged -= OnStreamMetadataChanged;
+        stream.LoudnessChanged -= OnStreamLoudnessChanged;
         stream.Dispose();
     }
 
@@ -161,6 +207,18 @@ public sealed class RadioEngine(StreamUrlResolver resolver, IcyProxy? proxy, Tra
 
     private void OnStreamMetadataChanged(object? sender, EventArgs e) =>
         StreamMetadataChanged?.Invoke(this, (StationStream)sender!);
+
+    private void OnStreamLoudnessChanged(object? sender, EventArgs e)
+    {
+        var stream = (StationStream)sender!;
+        if (stream.MeasuredLoudness is { } loudness)
+        {
+            // So a station that is opened again later, after being dropped as a favorite, starts where it left off.
+            _knownLoudness[stream.Station.Url] = loudness;
+        }
+
+        StreamLoudnessChanged?.Invoke(this, stream);
+    }
 
     private IEnumerable<StationStream> AllStreams() =>
         _transient is null ? _favorites.Values : _favorites.Values.Append(_transient);

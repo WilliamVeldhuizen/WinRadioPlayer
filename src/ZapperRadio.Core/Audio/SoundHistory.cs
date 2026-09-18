@@ -12,6 +12,13 @@ public enum Sound
 }
 
 /// <summary>
+/// One classified window of a stream: what it sounded like, and how loud it was in LUFS. The loudness is only
+/// measured while the window is music, because what a station does to its music is what makes it louder than the
+/// next station; ads and talk are mixed at a level of their own.
+/// </summary>
+public readonly record struct SoundWindow(Sound Sound, double? Loudness);
+
+/// <summary>
 /// The sound of the last windows of a stream, each about 5 seconds of audio. Songs sound like music almost throughout.
 /// Ads, news and presenters mix speech with jingles and music beds, so a single window says little and the recent
 /// ones are weighed together: some speech in the last half minute means talking, a stretch without any means music.

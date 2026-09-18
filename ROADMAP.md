@@ -22,12 +22,24 @@ the ring buffer onwards to `%MUSIC%\ZapperRadio\Artist - Title.mp3`, tagged. Tog
 rewind buffer it can record a song that was already halfway through when you noticed it. Intended
 for personal use of a broadcast, which the README should say plainly.
 
-## 3. Loudness normalization across stations
+## 3. Loudness normalization across stations - built in 1.12.0
 
-The most annoying part of zapping: one station is mastered several dB louder than the next. The
-PCM of every stream is decoded anyway, so a running EBU R128-style loudness estimate per station
-gives a per-station gain that is applied on unmute, and a manual per-station trim in the settings.
-Lives in `StationStream` / `RadioEngine`.
+`Core/Audio/Loudness` measures how loud audio is the EBU R128 / ITU-R BS.1770 way: the samples are K-weighted
+(the high shelf of the head and the RLB high pass) and the mean square of overlapping 400 ms blocks is averaged,
+leaving the blocks below -70 LUFS out. It runs on the PCM `SoundClassifier` already decodes for YAMNet, so it
+costs nothing but the arithmetic, and only on the windows YAMNet calls music: what a station does to its music
+is what makes it louder than the next one, while ads and presenters are mixed at a level of their own.
+
+`Core/Audio/StationLoudness` turns those windows into one number per station. A histogram rather than a list,
+because a favorite streams for hours, and gated as BS.1770 prescribes, so a quiet intro does not drag the level
+down. After about a minute of music (12 windows) it gives a gain towards -14 LUFS, the level streaming services
+normalize to, clamped to -12..+6 dB.
+
+`StationStream` owns the estimate, so it survives a reconnect, and applies `volume * gain` to its own player;
+`RadioEngine` keeps the manual trims and the loudness measured in an earlier run, which `AppSettings` stores per
+station so the correction is there from the first second of the next run. The settings show the measurement per
+favorite with a slider for the manual trim, and a switch for the whole thing. The one real limit is that
+`MediaPlayer.Volume` stops at 1, so a station that needs a boost cannot get one with the volume slider at the top.
 
 ## 4. Lock screen, media keys and global hotkeys - built in 1.11.0
 
@@ -140,6 +152,6 @@ it says again, and can probably come down, which makes the real breaks show up s
 
 ## Suggested order
 
-With 4 built, 5 is next: it pairs with the media keys and is about a day. Then 12, which is an
+With 3 and 4 built, 5 is next: it pairs with the media keys and is about a day. Then 12, which is an
 afternoon and makes the zapper, the thing the app is named after, wrong less often. Then 1, because
 it is the feature that cannot be copied without also keeping every stream open.

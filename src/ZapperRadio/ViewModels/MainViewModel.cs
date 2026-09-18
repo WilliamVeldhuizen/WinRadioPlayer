@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Net;
 using System.Reflection;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -41,6 +42,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly PlayHistoryStore _historyStore;
     private readonly DispatcherQueueTimer _historySaveTimer;
     private readonly DispatcherQueueTimer _historyPruneTimer;
+    private readonly DispatcherQueueTimer _trimSaveTimer;
 
     private List<StationResultViewModel> _allStations = [];
     private CancellationTokenSource? _searchCts;
@@ -85,6 +87,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _engine.ActiveChanged += (_, _) => UpdateNowPlaying();
         _engine.StreamStatusChanged += (_, stream) => OnStreamStatusChanged(stream);
         _engine.StreamMetadataChanged += (_, stream) => OnStreamMetadataChanged(stream);
+        _engine.StreamLoudnessChanged += (_, stream) => OnStreamLoudnessChanged(stream);
+
+        // Before the first stream is opened, so a station starts at the loudness it was measured at last time.
+        _engine.NormalizeLoudness = _settings.NormalizeLoudness;
+        foreach (var (url, trim) in _settings.StationTrims)
+        {
+            _engine.SetTrim(url, trim);
+        }
+
+        foreach (var (url, loudness) in _settings.StationLoudness)
+        {
+            _engine.SetKnownLoudness(url, loudness);
+        }
 
         _searchDebounce = dispatcher.CreateTimer();
         _searchDebounce.Interval = TimeSpan.FromMilliseconds(250);
@@ -110,14 +125,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _historyPruneTimer.Tick += (_, _) => PruneHistory();
         _historyPruneTimer.Start();
 
+        _trimSaveTimer = dispatcher.CreateTimer();
+        _trimSaveTimer.Interval = TimeSpan.FromMilliseconds(500);
+        _trimSaveTimer.IsRepeating = false;
+        _trimSaveTimer.Tick += (_, _) => SaveSettings();
+
         Volume = _engine.Volume * 100;
         SelectedCountry = _settings.Country ?? AllCountries;
 
         foreach (var station in _settings.Favorites.DistinctBy(s => s.Url).Take(AppSettings.MaxFavorites))
         {
-            var favorite = new FavoriteViewModel(station);
-            Favorites.Add(favorite);
-            _ = LoadFavoriteLogoAsync(favorite);
+            AddFavorite(station);
         }
 
         foreach (var track in _settings.FavoriteTracks)
@@ -137,6 +155,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         SyncFavorites();
         // After the favorites are loaded, because changing these saves the settings.
         ZappOnAdBreaks = _settings.ZappOnAdBreaks;
+        NormalizeLoudness = _settings.NormalizeLoudness;
         GlobalHotkeys = _settings.GlobalHotkeys;
         IsCompact = _settings.IsCompact;
     }
@@ -255,6 +274,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>Zap to another favorite during the ad breaks of the station being listened to, and back once they are over.</summary>
     [ObservableProperty]
     public partial bool ZappOnAdBreaks { get; set; }
+
+    /// <summary>Whether the loud stations are turned down to the level of the rest, so zapping keeps one volume.</summary>
+    [ObservableProperty]
+    public partial bool NormalizeLoudness { get; set; } = true;
 
     /// <summary>Whether the Ctrl+Alt shortcuts also work while another app has focus.</summary>
     [ObservableProperty]
@@ -523,7 +546,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var favorite = new FavoriteViewModel(station);
+        AddFavorite(station);
+    }
+
+    /// <summary>Adds a favorite with the loudness trim it was given earlier, and follows any change to that trim.</summary>
+    private void AddFavorite(Station station)
+    {
+        // The trim is set before the handler is attached, so restoring it does not count as a change to save.
+        var favorite = new FavoriteViewModel(station) { TrimDb = _settings.StationTrims.GetValueOrDefault(station.Url) };
+        favorite.PropertyChanged += OnFavoritePropertyChanged;
         Favorites.Add(favorite);
         _ = LoadFavoriteLogoAsync(favorite);
     }
@@ -721,6 +752,62 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         SaveSettings();
     }
 
+    partial void OnNormalizeLoudnessChanged(bool value)
+    {
+        _settings.NormalizeLoudness = value;
+        _engine.NormalizeLoudness = value;
+        UpdateLoudnessTexts();
+        SaveSettings();
+    }
+
+    /// <summary>Follows the loudness slider of a favorite in the settings: it is heard at once and saved shortly after.</summary>
+    private void OnFavoritePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(FavoriteViewModel.TrimDb) || sender is not FavoriteViewModel favorite)
+        {
+            return;
+        }
+
+        var url = favorite.Station.Url;
+        if (Math.Abs(favorite.TrimDb) < 0.05)
+        {
+            _settings.StationTrims.Remove(url);
+        }
+        else
+        {
+            _settings.StationTrims[url] = favorite.TrimDb;
+        }
+
+        _engine.SetTrim(url, favorite.TrimDb);
+        // Dragging the slider changes it many times a second, which is far too often to write the file for.
+        if (!_trimSaveTimer.IsRunning)
+        {
+            _trimSaveTimer.Start();
+        }
+    }
+
+    private void OnStreamLoudnessChanged(StationStream stream)
+    {
+        if (stream.MeasuredLoudness is { } loudness)
+        {
+            _settings.StationLoudness[stream.Station.Url] = loudness;
+            SaveSettings();
+        }
+
+        UpdateLoudnessTexts();
+    }
+
+    /// <summary>Refreshes what the loudness section of the settings says about each favorite.</summary>
+    private void UpdateLoudnessTexts()
+    {
+        foreach (var favorite in Favorites)
+        {
+            favorite.LoudnessText = _engine.Find(favorite.Station.Url) is { } stream
+                ? LoudnessTexts.For(stream.MeasuredLoudness, stream.MeasuredGainDb, NormalizeLoudness)
+                : LoudnessTexts.NotMeasured;
+        }
+    }
+
     partial void OnZappOnAdBreaksChanged(bool value)
     {
         _settings.ZappOnAdBreaks = value;
@@ -872,6 +959,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         RefreshFavoriteMarks();
+        UpdateLoudnessTexts();
         UpdateNowPlaying();
         ScheduleJumpListUpdate();
         SaveSettings();
@@ -1054,6 +1142,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _settings.Favorites = Favorites.Select(f => f.Station).ToList();
         _settings.FavoriteTracks = FavoriteTracks.ToList();
         _settings.Volume = _engine.Volume;
+
+        // A station that was played once should not keep its measurement in the settings file forever.
+        var favorites = Favorites.Select(f => f.Station.Url).ToHashSet(StringComparer.Ordinal);
+        foreach (var url in _settings.StationLoudness.Keys.Where(u => !favorites.Contains(u)).ToList())
+        {
+            _settings.StationLoudness.Remove(url);
+        }
+
         try
         {
             _settingsStore.Save(_settings);
@@ -1068,6 +1164,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         SaveSettings();
         _historyPruneTimer.Stop();
+        _trimSaveTimer.Stop();
         SaveHistory();
         // Songs and the mute state are outdated once the app is closed.
         _jumpListTimer.Stop();

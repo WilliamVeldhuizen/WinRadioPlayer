@@ -20,6 +20,8 @@ public enum StreamStatus
 /// A single station stream that keeps running for as long as it exists. It starts muted;
 /// listening to it is a matter of unmuting, so switching never opens a new connection
 /// (which is where most stations insert their pre-roll ads).
+/// It also keeps a running loudness estimate of the station, so the loud ones are turned down to the level of
+/// the rest and zapping does not change how loud the music is.
 /// Dropped connections are re-established automatically with a back-off.
 /// All members must be used on the UI thread; player events are marshalled to it.
 /// </summary>
@@ -40,12 +42,20 @@ public sealed class StationStream : IDisposable
     /// <summary>How long after the last classified window the stream still counts as listened to.</summary>
     private static readonly TimeSpan ListeningTimeout = TimeSpan.FromSeconds(20);
 
+    /// <summary>
+    /// How far a new loudness estimate has to be from the one in use before the volume is moved, in decibels.
+    /// Every window of music refines the estimate a little, and following it exactly would keep nudging the
+    /// volume while a song plays.
+    /// </summary>
+    private const double MinLoudnessChange = 0.5;
+
     private readonly DispatcherQueue _dispatcher;
     private readonly StreamUrlResolver _resolver;
     private readonly IcyProxy? _proxy;
     private readonly TrackDurations? _durations;
     private readonly SoundClassifier? _classifier;
     private readonly SoundHistory _sound = new();
+    private readonly StationLoudness _loudness = new();
     private readonly UnmarkedAdBreak _unmarkedAdBreak = new();
     private readonly MediaPlayer _player;
     private readonly DispatcherQueueTimer _watchdog;
@@ -59,6 +69,10 @@ public sealed class StationStream : IDisposable
     private int _failedAttempts;
     private DateTime _lastPlayingUtc;
     private int _songNumber;
+    private double _volume;
+    private double _trimDb;
+    private bool _normalizeLoudness = true;
+    private double? _measuredLoudness;
     private bool _disposed;
 
     /// <param name="proxy">Relays the stream to read its song titles; null plays the station directly.</param>
@@ -72,6 +86,7 @@ public sealed class StationStream : IDisposable
         _durations = durations;
         _classifier = classifier;
         _dispatcher = dispatcher;
+        _volume = volume;
 
         _player = new MediaPlayer
         {
@@ -141,10 +156,65 @@ public sealed class StationStream : IDisposable
         set => _player.IsMuted = value;
     }
 
+    /// <summary>The volume the player is set to, before the loudness of this station is corrected for.</summary>
     public double Volume
     {
-        get => _player.Volume;
-        set => _player.Volume = value;
+        get => _volume;
+        set
+        {
+            _volume = value;
+            ApplyVolume();
+        }
+    }
+
+    /// <summary>A manual correction for this station in decibels, on top of the measured loudness.</summary>
+    public double TrimDb
+    {
+        get => _trimDb;
+        set
+        {
+            _trimDb = value;
+            ApplyVolume();
+        }
+    }
+
+    /// <summary>Whether the measured loudness is corrected for; the manual trim is applied either way.</summary>
+    public bool NormalizeLoudness
+    {
+        get => _normalizeLoudness;
+        set
+        {
+            _normalizeLoudness = value;
+            ApplyVolume();
+        }
+    }
+
+    /// <summary>
+    /// How loud the music of this station is in LUFS, or null while too little of it has been heard. Streams that
+    /// are not listened to (HLS, which skips the relay) never get one and are left at the volume they come in at.
+    /// </summary>
+    public double? MeasuredLoudness => _measuredLoudness;
+
+    /// <summary>The correction the measured loudness asks for, in decibels, or 0 while there is none to apply.</summary>
+    public double MeasuredGainDb =>
+        _normalizeLoudness && _measuredLoudness is { } loudness
+            ? Math.Clamp(StationLoudness.Target - loudness, StationLoudness.MinGainDb, StationLoudness.MaxGainDb)
+            : 0;
+
+    /// <summary>Everything that is done to the volume of this station: the measured correction plus the trim.</summary>
+    public double GainDb => MeasuredGainDb + _trimDb;
+
+    /// <summary>Raised when <see cref="MeasuredLoudness"/> changes, which is at most once per window of music.</summary>
+    public event EventHandler? LoudnessChanged;
+
+    /// <summary>
+    /// Starts from the loudness measured for this station in an earlier run, so its correction applies right away
+    /// instead of after the minute of music it takes to measure again. Only meaningful before the stream starts.
+    /// </summary>
+    public void SeedLoudness(double loudness)
+    {
+        _measuredLoudness = loudness;
+        ApplyVolume();
     }
 
     public void Start() => _ = ConnectAsync();
@@ -195,11 +265,11 @@ public sealed class StationStream : IDisposable
 
         Uri? relayUrl = null;
         SoundClassifier.Listener? listener = null;
-        listener = _listener = _classifier?.Listen(sound => OnUiThread(() =>
+        listener = _listener = _classifier?.Listen(window => OnUiThread(() =>
         {
             if (_listener == listener)
             {
-                AddSound(sound);
+                AddSound(window);
             }
         }));
         relayUrl = _relayUrl = _proxy.Register(uri, metadata => OnUiThread(() =>
@@ -280,16 +350,39 @@ public sealed class StationStream : IDisposable
         }
     }
 
-    private void AddSound(Sound sound)
+    private void AddSound(SoundWindow window)
     {
         var before = Sound;
         _lastSoundUtc = DateTime.UtcNow;
-        _sound.Add(sound);
+        _sound.Add(window.Sound);
+        if (window.Loudness is { } loudness)
+        {
+            _loudness.Add(loudness);
+            UpdateLoudness();
+        }
+
         if (UpdateAssumedAdBreak() | Sound != before)
         {
             MetadataChanged?.Invoke(this, EventArgs.Empty);
         }
     }
+
+    /// <summary>Takes over a new estimate once it is far enough from the one in use to be worth moving the volume.</summary>
+    private void UpdateLoudness()
+    {
+        if (_loudness.Value is not { } loudness
+            || (_measuredLoudness is { } current && Math.Abs(current - loudness) < MinLoudnessChange))
+        {
+            return;
+        }
+
+        _measuredLoudness = loudness;
+        ApplyVolume();
+        LoudnessChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Sets the player to the volume with the gain of this station applied; a boost stops at full volume.</summary>
+    private void ApplyVolume() => _player.Volume = Math.Clamp(_volume * Loudness.Linear(GainDb), 0, 1);
 
     private bool UpdateAssumedAdBreak() => _unmarkedAdBreak.Update(IsSongOverdue, IsListening, _sound);
 

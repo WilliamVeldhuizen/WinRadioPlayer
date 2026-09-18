@@ -21,6 +21,18 @@ public sealed class AppSettings
     /// <summary>Zap to another favorite during the ad breaks of the station being listened to, and back afterwards.</summary>
     public bool ZappOnAdBreaks { get; set; }
 
+    /// <summary>Whether every station is brought to the same loudness, so zapping does not change the volume.</summary>
+    public bool NormalizeLoudness { get; set; } = true;
+
+    /// <summary>A manual correction per station in decibels, by stream URL, on top of the measured loudness.</summary>
+    public Dictionary<string, double> StationTrims { get; set; } = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// The loudness in LUFS measured per station, by stream URL, so the correction applies from the first second
+    /// of the next run instead of after the minute of music it takes to measure it again.
+    /// </summary>
+    public Dictionary<string, double> StationLoudness { get; set; } = new(StringComparer.Ordinal);
+
     /// <summary>Whether the small window with only the favorites is shown instead of the full one.</summary>
     public bool IsCompact { get; set; }
 
