@@ -68,7 +68,7 @@
                     <StackPanel Padding="16,14,16,8" Spacing="2">
                         <TextBlock Text="{x:Bind ViewModel.FavoritesHeader, Mode=OneWay}" Style="{StaticResource SubtitleTextBlockStyle}" />
                         <TextBlock
-                            Text="Favorites keep playing muted in the background, so switching is instantly live: no reconnecting and no ads first."
+                            Text="Favorites keep playing muted in the background, so switching is instantly live: no reconnecting and no ads first. Drag a favorite up or down to reorder them."
                             Style="{StaticResource CaptionTextBlockStyle}"
                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                             TextWrapping="Wrap" />
@@ -96,15 +96,24 @@
                         ItemClick="Favorite_ItemClick"
                         CanReorderItems="True"
                         CanDragItems="True"
-                        AllowDrop="True">
+                        AllowDrop="True"
+                        GotFocus="Favorite_GotFocus"
+                        LostFocus="Favorite_LostFocus">
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="vm:FavoriteViewModel">
-                                <Grid Padding="0,8" ColumnSpacing="10">
+                                <Grid
+                                    Background="Transparent"
+                                    Padding="0,8" ColumnSpacing="10"
+                                    PointerEntered="Favorite_PointerEntered"
+                                    PointerExited="Favorite_PointerExited"
+                                    PointerCanceled="Favorite_PointerExited"
+                                    PointerCaptureLost="Favorite_PointerExited">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="3" />
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
+                                        <!-- The remove button only shows while the row is hovered, but always keeps its place so the row does not jump. -->
+                                        <ColumnDefinition Width="36" />
                                     </Grid.ColumnDefinitions>
 
                                     <Rectangle
@@ -148,6 +157,7 @@
                                         Grid.Column="3"
                                         Style="{StaticResource IconButtonStyle}"
                                         VerticalAlignment="Center"
+                                        Visibility="{x:Bind ShowActions, Mode=OneWay}"
                                         ToolTipService.ToolTip="Remove from favorites"
                                         Click="RemoveFavorite_Click">
                                         <FontIcon Glyph="&#xE711;" FontSize="12" />

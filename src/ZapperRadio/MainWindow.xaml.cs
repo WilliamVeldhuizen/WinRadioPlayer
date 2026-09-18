@@ -146,6 +146,31 @@ public sealed partial class MainWindow : Window
 
     private void NowPlayingLogo_ImageFailed(object sender, ExceptionRoutedEventArgs e) => ViewModel.NowPlayingLogo.OnImageFailed();
 
+    private void Favorite_PointerEntered(object sender, PointerRoutedEventArgs e) => SetFavoritePointerOver(sender, true);
+
+    private void Favorite_PointerExited(object sender, PointerRoutedEventArgs e) => SetFavoritePointerOver(sender, false);
+
+    private static void SetFavoritePointerOver(object sender, bool isPointerOver)
+    {
+        if (sender is FrameworkElement { DataContext: FavoriteViewModel favorite })
+        {
+            favorite.IsPointerOver = isPointerOver;
+        }
+    }
+
+    private void Favorite_GotFocus(object sender, RoutedEventArgs e) => SetFavoriteFocus(e, true);
+
+    private void Favorite_LostFocus(object sender, RoutedEventArgs e) => SetFavoriteFocus(e, false);
+
+    /// <summary>Keeps the buttons of a favorite visible while it is reachable with the keyboard.</summary>
+    private static void SetFavoriteFocus(RoutedEventArgs e, bool hasFocus)
+    {
+        if (e.OriginalSource is FrameworkElement { DataContext: FavoriteViewModel favorite })
+        {
+            favorite.HasFocus = hasFocus;
+        }
+    }
+
     private void RemoveFavorite_Click(object sender, RoutedEventArgs e) =>
         ViewModel.RemoveFavorite((FavoriteViewModel)((FrameworkElement)sender).DataContext);
 

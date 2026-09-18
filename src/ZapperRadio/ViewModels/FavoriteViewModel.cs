@@ -13,6 +13,19 @@ public sealed partial class FavoriteViewModel(Station station) : ObservableObjec
 
     public string Name => Station.Name;
 
+    /// <summary>Whether the mouse is over the row.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowActions))]
+    public partial bool IsPointerOver { get; set; }
+
+    /// <summary>Whether the row, or a button in it, has the keyboard focus.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowActions))]
+    public partial bool HasFocus { get; set; }
+
+    /// <summary>Whether the row shows its buttons, which stay out of the way until the row is pointed at or focused.</summary>
+    public bool ShowActions => IsPointerOver || HasFocus;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(StatusText))]
     public partial bool IsActive { get; set; }
