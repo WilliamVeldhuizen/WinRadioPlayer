@@ -13,8 +13,6 @@ public sealed partial class FavoriteViewModel(Station station) : ObservableObjec
 
     public string Name => Station.Name;
 
-    public string Subtitle => Station.Subtitle;
-
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(StatusText))]
     public partial bool IsActive { get; set; }
