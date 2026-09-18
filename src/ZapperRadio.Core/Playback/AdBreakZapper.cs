@@ -24,14 +24,15 @@ public enum ChannelState
 public readonly record struct Channel(string Url, ChannelState State)
 {
     /// <summary>
-    /// A title alone does not prove that a song is playing: some stations send program names, and presenters talk
-    /// between songs. What the stream sounds like therefore weighs first, and music counts as a song even without a title.
+    /// A title alone does not prove that a song is playing: some stations send their own name or a program name,
+    /// and presenters talk between songs, so only a title shaped like "Artist - Title" counts here. What the stream
+    /// sounds like weighs first either way, and music counts as a song even without a title.
     /// </summary>
-    public static ChannelState StateOf(bool isInAdBreak, bool isLive, bool hasTitle, Sound sound) =>
+    public static ChannelState StateOf(bool isInAdBreak, bool isLive, bool hasSongTitle, Sound sound) =>
         isInAdBreak ? ChannelState.Ad
         : !isLive ? ChannelState.Unavailable
         : sound == Sound.Speech ? ChannelState.Speech
-        : sound == Sound.Music || hasTitle ? ChannelState.Song
+        : sound == Sound.Music || hasSongTitle ? ChannelState.Song
         : ChannelState.Unknown;
 }
 

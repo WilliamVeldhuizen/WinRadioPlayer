@@ -908,7 +908,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     private static ChannelState ChannelOf(StationStream stream) =>
-        Channel.StateOf(stream.IsInAdBreak, stream.Status == StreamStatus.Live, stream.Metadata?.Title is not null, stream.Sound);
+        Channel.StateOf(stream.IsInAdBreak, stream.Status == StreamStatus.Live, stream.Metadata?.IsSong == true, stream.Sound);
 
     private async Task ApplySearchAsync()
     {

@@ -33,12 +33,6 @@ public sealed class StationStream : IDisposable
     /// <summary>How long a stream may be opening or buffering before it is considered stuck.</summary>
     private static readonly TimeSpan StallTimeout = TimeSpan.FromSeconds(45);
 
-    /// <summary>
-    /// How long a song may run past its known length before an ad break is assumed. Covers titles sent a bit
-    /// late, the station playing a longer version, and a short announcement after the song.
-    /// </summary>
-    private static readonly TimeSpan SongOverrun = TimeSpan.FromSeconds(30);
-
     /// <summary>How long after the last classified window the stream still counts as listened to.</summary>
     private static readonly TimeSpan ListeningTimeout = TimeSpan.FromSeconds(20);
 
@@ -56,6 +50,7 @@ public sealed class StationStream : IDisposable
     private readonly SoundClassifier? _classifier;
     private readonly SoundHistory _sound = new();
     private readonly StationLoudness _loudness = new();
+    private readonly SongClock _songClock = new();
     private readonly UnmarkedAdBreak _unmarkedAdBreak = new();
     private readonly MediaPlayer _player;
     private readonly DispatcherQueueTimer _watchdog;
@@ -104,7 +99,12 @@ public sealed class StationStream : IDisposable
 
         _watchdog = dispatcher.CreateTimer();
         _watchdog.Interval = TimeSpan.FromSeconds(5);
-        _watchdog.Tick += (_, _) => CheckForStall();
+        _watchdog.Tick += (_, _) =>
+        {
+            CheckForStall();
+            // A stream that cannot be heard gets no windows to anchor its song clock to, so it is nudged here.
+            UpdateSongClock();
+        };
 
         _retryTimer = dispatcher.CreateTimer();
         _retryTimer.IsRepeating = false;
@@ -128,7 +128,8 @@ public sealed class StationStream : IDisposable
 
     /// <summary>
     /// True when the current song should have ended a while ago and no new title came, which usually
-    /// means the station is playing ads without marking them.
+    /// means the station is playing ads without marking them. It is timed from the moment the audio says
+    /// the song started (<see cref="SongClock"/>), not from the moment its title arrived.
     /// </summary>
     public bool IsSongOverdue { get; private set; }
 
@@ -143,6 +144,13 @@ public sealed class StationStream : IDisposable
 
     /// <summary>Whether the sound classifier heard this stream recently.</summary>
     public bool IsListening => _listener is not null && DateTime.UtcNow - _lastSoundUtc < ListeningTimeout;
+
+    /// <summary>
+    /// Whether the stream can be heard at all: it is relayed through the classifier and either has been heard
+    /// recently or has not had the time to be heard yet. Unlike <see cref="IsListening"/> this stays true in the
+    /// seconds before the first window comes in, so the song clock waits for the audio instead of giving up on it.
+    /// </summary>
+    private bool CanHear => _listener is not null && (_lastSoundUtc == default || IsListening);
 
     /// <summary>What the stream sounds like: music or speech. Unknown when it is not listened to or the sound is mixed.</summary>
     public Sound Sound => IsListening ? _sound.Current : Sound.Unknown;
@@ -277,16 +285,12 @@ public sealed class StationStream : IDisposable
             // Ignore a relay that is being replaced by a new connection.
             if (_relayUrl == relayUrl)
             {
-                if (metadata is { Title: null, IsAd: false })
-                {
-                    // Some stations clear the title between a song and the ads. That does not end the song,
-                    // so the ads that follow are still noticed when the song runs over.
-                    SetMetadata(null, keepSongEnd: true);
-                }
-                else
-                {
-                    SetMetadata(metadata);
-                }
+                // Between a song and the ads, some stations clear the title and others put their own name or the
+                // name of the program there. Neither is the next song, so the clock of the one that was playing
+                // keeps running and the ads that follow are still noticed when it runs over.
+                SetMetadata(
+                    metadata is { Title: null, IsAd: false } ? null : metadata,
+                    keepSongEnd: metadata is { IsAd: false, IsSong: false });
             }
         }), listener is null ? null : listener.Write);
         return relayUrl;
@@ -304,6 +308,7 @@ public sealed class StationStream : IDisposable
         {
             _songNumber++;
             _songEndTimer.Stop();
+            _songClock.Stop();
             IsSongOverdue = false;
             // What the previous song or ad sounded like says nothing about the new one.
             _sound.Clear();
@@ -312,32 +317,45 @@ public sealed class StationStream : IDisposable
         UpdateAssumedAdBreak();
         MetadataChanged?.Invoke(this, EventArgs.Empty);
 
-        if (_durations is not null && metadata is { IsAd: false, Title: { } title })
+        if (_durations is not null && metadata is { IsSong: true, Title: { } title })
         {
+            _songClock.Start(DateTimeOffset.UtcNow);
             _ = WatchSongEndAsync(title);
         }
     }
 
-    /// <summary>
-    /// Times the song from the moment its title arrived. After tuning in halfway through a song it has
-    /// really been playing longer, so the ad break is then noticed a bit late rather than too early.
-    /// </summary>
+    /// <summary>Looks up how long the song lasts, so <see cref="SongClock"/> knows when it should have ended.</summary>
     private async Task WatchSongEndAsync(string title)
     {
         var songNumber = _songNumber;
-        var startedUtc = DateTime.UtcNow;
         var duration = await _durations!.GetAsync(title);
         OnUiThread(() =>
         {
-            if (duration is null || songNumber != _songNumber)
+            if (duration is not null && songNumber == _songNumber)
             {
-                return;
+                _songClock.SetLength(duration.Value);
+                UpdateSongClock();
             }
-
-            var remaining = startedUtc + duration.Value + SongOverrun - DateTime.UtcNow;
-            _songEndTimer.Interval = remaining > TimeSpan.FromSeconds(1) ? remaining : TimeSpan.FromSeconds(1);
-            _songEndTimer.Start();
         });
+    }
+
+    /// <summary>
+    /// Waits for the end of the song from the moment the audio says it started, rather than from the moment its
+    /// title arrived, which on many stations is a good deal earlier. The wait is set again whenever the clock
+    /// moves, which it does at most once per song.
+    /// </summary>
+    private void UpdateSongClock()
+    {
+        _songClock.Update(CanHear ? _sound : null, DateTimeOffset.UtcNow);
+        if (IsSongOverdue || _songClock.OverdueAt is not { } overdue)
+        {
+            return;
+        }
+
+        var remaining = overdue - DateTimeOffset.UtcNow;
+        _songEndTimer.Stop();
+        _songEndTimer.Interval = remaining > TimeSpan.FromSeconds(1) ? remaining : TimeSpan.FromSeconds(1);
+        _songEndTimer.Start();
     }
 
     private void MarkSongOverdue()
@@ -361,6 +379,7 @@ public sealed class StationStream : IDisposable
             UpdateLoudness();
         }
 
+        UpdateSongClock();
         if (UpdateAssumedAdBreak() | Sound != before)
         {
             MetadataChanged?.Invoke(this, EventArgs.Empty);
@@ -487,6 +506,8 @@ public sealed class StationStream : IDisposable
 
         _listener?.Dispose();
         _listener = null;
+        // The next connection has not been heard yet, rather than heard a long time ago.
+        _lastSoundUtc = default;
 
         SetMetadata(null);
     }

@@ -16,6 +16,9 @@ public sealed class TrackDurations(HttpClient http, TimeSpan? requestSpacing = n
 
     private const int MaxCachedTitles = 1000;
 
+    /// <summary>What stations put between the artist and the title. The dash is by far the most common one.</summary>
+    private static readonly string[] Separators = [" - ", " – ", " — ", " | "];
+
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan MinDuration = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan MaxDuration = TimeSpan.FromMinutes(15);
@@ -82,17 +85,29 @@ public sealed class TrackDurations(HttpClient http, TimeSpan? requestSpacing = n
         }
     }
 
-    /// <summary>Splits "Artist - Title" at the first dash; titles without one (station names, shows) are not songs.</summary>
+    /// <summary>
+    /// Splits "Artist - Title" at its first separator; titles without one (station names, shows) are not songs.
+    /// </summary>
     public static (string Artist, string Title)? SplitTitle(string streamTitle)
     {
-        var separator = streamTitle.IndexOf(" - ", StringComparison.Ordinal);
-        if (separator <= 0)
+        var separator = -1;
+        var length = 0;
+        foreach (var candidate in Separators)
+        {
+            var found = streamTitle.IndexOf(candidate, StringComparison.Ordinal);
+            if (found > 0 && (separator < 0 || found < separator))
+            {
+                (separator, length) = (found, candidate.Length);
+            }
+        }
+
+        if (separator < 0)
         {
             return null;
         }
 
         var artist = streamTitle[..separator].Trim();
-        var title = streamTitle[(separator + 3)..].Trim();
+        var title = streamTitle[(separator + length)..].Trim();
         return artist.Length > 0 && title.Length > 0 ? (artist, title) : null;
     }
 

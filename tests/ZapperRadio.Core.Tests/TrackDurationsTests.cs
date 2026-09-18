@@ -15,10 +15,15 @@ public class TrackDurationsTests
     [Theory]
     [InlineData("Queen - Bohemian Rhapsody", "Queen", "Bohemian Rhapsody")]
     [InlineData("AC/DC - Back In Black - Live", "AC/DC", "Back In Black - Live")]
+    // Stations that use something other than a dash between the artist and the title.
+    [InlineData("Coldplay – Yellow", "Coldplay", "Yellow")]
+    [InlineData("Coldplay — Yellow", "Coldplay", "Yellow")]
+    [InlineData("Coldplay | Yellow", "Coldplay", "Yellow")]
+    [InlineData("Queen | Bohemian Rhapsody - Remastered", "Queen", "Bohemian Rhapsody - Remastered")]
     [InlineData("Radio 538", null, null)]
     [InlineData(" - Title", null, null)]
     [InlineData("Artist - ", null, null)]
-    public void SplitTitle_SplitsAtFirstDash(string streamTitle, string? artist, string? title)
+    public void SplitTitle_SplitsAtTheFirstSeparator(string streamTitle, string? artist, string? title)
     {
         var song = TrackDurations.SplitTitle(streamTitle);
 

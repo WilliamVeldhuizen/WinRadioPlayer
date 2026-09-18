@@ -124,34 +124,33 @@ from what is shown. And the country and genre names come from the station list i
 they stay English while the rest of the window is translated, or a mapping per language is kept for
 the few dozen countries that matter. Neither is hard, but both decide how finished the result feels.
 
-## 12. Start the song clock when the song starts, not when its title arrives
+## 12. Start the song clock when the song starts, not when its title arrives - built in 1.14.0
 
-The unmarked ad break detection of item 4 in the README times a song from the moment its title comes
-in: `StationStream.WatchSongEndAsync` takes `DateTime.UtcNow` there and sets `_songEndTimer` to
+The unmarked ad break detection of item 4 in the README used to time a song from the moment its title
+came in: `StationStream.WatchSongEndAsync` took `DateTime.UtcNow` there and set `_songEndTimer` to
 `title arrival + length + SongOverrun`, 30 seconds. That assumes the title and the song start together,
 and plenty of stations do not work that way. Their playout system announces the next item while the
-current one is still fading, or over the jingle in between, so the title runs 10 to 20 seconds ahead
-of the audio.
+current one is still fading, or over the jingle in between, so the title runs 10 to 20 seconds ahead of
+the audio. The clock then started too early and the 30 seconds of slack quietly shrank to 10: the song
+was marked overdue while it was still playing, and the first presenter or station ident after it was
+enough for `UnmarkedAdBreak` to call a break that was not one.
 
-The clock then starts too early and the 30 seconds of slack quietly shrink to 10. The song is marked
-overdue while it is still playing or has only just ended, and the first presenter or station ident
-after it is enough for `UnmarkedAdBreak` to call a break that is not one: a yellow "Probably an ad
-break", and with zapping on, a zap away from a station that was about to play the next song.
+`Core/Audio/SongClock` anchors the clock to the audio instead. A title starts the clock but not the
+timer; the first two windows of music in a row after it (about 10 seconds, because one window alone is
+noise) say where the song really began, and the clock is set back to the start of that run. A title that
+arrives late, while the song is already playing, cannot move the song forward, so the clock never starts
+later than the title. Streams that are not classified at all (HLS, which skips the relay) and streams
+where 45 seconds pass without either music or speech - a quiet or instrumental intro - fall back to
+timing from the title as they did before, nudged by the 5-second watchdog rather than by a window.
 
-The audio already says when the song really starts, so anchor the clock to that instead: hold the
-timer while the stream sounds like speech and start it at the first window of music. The one thing to
-get right is that `SetMetadata` calls `_sound.Clear()` on every new title and `SoundHistory.Current`
-needs three windows (about 15 seconds) before it says anything, so the decision cannot be read at the
-instant the title arrives - it has to come from the windows that follow it, in `AddSound`. A cap on
-the wait keeps a quiet or instrumental intro, which classifies as neither, from holding the timer
-forever, and streams that are not classified at all (HLS, which skips the relay) keep timing from the
-title as they do now.
-
-Worth doing before the slack is tuned: with the clock anchored to the song, `SongOverrun` means what
-it says again, and can probably come down, which makes the real breaks show up sooner too.
+With the clock on the song itself, `Overrun` means what it says again and came down from 30 to 20
+seconds, which makes the real breaks show up sooner too. Two smaller holes went with it: a station that
+replaces the song title with its own name or the name of the program between the song and the ads no
+longer resets the clock (only a title shaped like "Artist - Title" is a new song), and only such a title
+counts as evidence of a song in `Channel.StateOf`, so a station name during a break is no longer mistaken
+for music.
 
 ## Suggested order
 
-With 3 and 4 built, 5 is next: it pairs with the media keys and is about a day. Then 12, which is an
-afternoon and makes the zapper, the thing the app is named after, wrong less often. Then 1, because
+With 3, 4 and 12 built, 5 is next: it pairs with the media keys and is about a day. Then 1, because
 it is the feature that cannot be copied without also keeping every stream open.

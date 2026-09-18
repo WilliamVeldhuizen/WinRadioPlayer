@@ -18,6 +18,18 @@ public class IcyProxyTests
     [InlineData("StreamTitle='The Commercials - Ad Break';", "The Commercials - Ad Break", false)]
     [InlineData("StreamTitle='  ';", null, false)]
     [InlineData("", null, false)]
+    // Stations that fill both halves of "Artist - Title" repeat the marker in each of them.
+    [InlineData("StreamTitle='Reclame - Reclame';", null, true)]
+    [InlineData("StreamTitle='Advertisement | Advertisement';", null, true)]
+    // Markers in the other languages the station list covers.
+    [InlineData("StreamTitle='Werbung';", null, true)]
+    [InlineData("StreamTitle='Publicidade';", null, true)]
+    [InlineData("StreamTitle='Reklama';", null, true)]
+    // Not every server closes its last field with a semicolon.
+    [InlineData("StreamTitle='Artist - Title'", "Artist - Title", false)]
+    [InlineData("StreamTitle='It's a hit'", "It's a hit", false)]
+    // Some ad platforms mark the block with a 1 rather than with "true".
+    [InlineData("StreamTitle='';adw_ad='1';", null, true)]
     public void ParsesMetadata(string text, string? title, bool isAd)
     {
         Assert.Equal(new IcyMetadata(title, isAd), IcyMetadata.Parse(text));
