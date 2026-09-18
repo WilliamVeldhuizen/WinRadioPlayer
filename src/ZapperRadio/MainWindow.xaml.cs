@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -19,17 +20,37 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
 
         ExtendsContentIntoTitleBar = true;
-        SetTitleBar(AppTitleBar);
+        SetTitleBar(TitleBarDragArea);
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "ZapperRadio.ico"));
 
-        var scale = GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)) / 96.0;
-        AppWindow.Resize(new SizeInt32((int)(1100 * scale), (int)(720 * scale)));
+        AppTitleBar.SizeChanged += (_, _) => KeepViewButtonClearOfCaptionButtons();
+        KeepViewButtonClearOfCaptionButtons();
+
+        _fullSize = Scaled(FullWidth, FullHeight);
+        ShowCurrentView(rememberFullSize: false);
+        ViewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(MainViewModel.IsCompact))
+            {
+                ShowCurrentView(rememberFullSize: true);
+            }
+        };
 
         AddKeyboardShortcuts();
         Closed += (_, _) => ViewModel.Dispose();
 
         _ = ViewModel.LoadCatalogAsync();
     }
+
+    private const int FullWidth = 1100;
+    private const int FullHeight = 720;
+
+    /// <summary>The compact window shows about eight favorites; the rest is scrolled to.</summary>
+    private const int CompactWidth = 340;
+    private const int CompactHeight = 520;
+
+    /// <summary>The size of the full window, to return to when the compact view is left again.</summary>
+    private SizeInt32 _fullSize;
 
     /// <summary>The text field inside the country box while it has focus.</summary>
     private TextBox? _countryText;
@@ -46,6 +67,40 @@ public sealed partial class MainWindow : Window
         Activate();
         SetForegroundWindow(WinRT.Interop.WindowNative.GetWindowHandle(this));
     }
+
+    /// <summary>Gives the window the size of the view that is shown now.</summary>
+    private void ShowCurrentView(bool rememberFullSize)
+    {
+        if (!ViewModel.IsCompact)
+        {
+            ResizeOnScreen(_fullSize);
+            return;
+        }
+
+        if (rememberFullSize)
+        {
+            _fullSize = AppWindow.Size;
+        }
+
+        ResizeOnScreen(Scaled(CompactWidth, CompactHeight));
+    }
+
+    /// <summary>Resizes the window, keeping it on the screen it is on: growing it near an edge must not push it off.</summary>
+    private void ResizeOnScreen(SizeInt32 size)
+    {
+        var work = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Nearest).WorkArea;
+        var x = Math.Clamp(AppWindow.Position.X, work.X, Math.Max(work.X, work.X + work.Width - size.Width));
+        var y = Math.Clamp(AppWindow.Position.Y, work.Y, Math.Max(work.Y, work.Y + work.Height - size.Height));
+        AppWindow.MoveAndResize(new RectInt32(x, y, size.Width, size.Height));
+    }
+
+    /// <summary>Keeps the view button left of the minimize, maximize and close buttons, whose width varies.</summary>
+    private void KeepViewButtonClearOfCaptionButtons() =>
+        ViewButton.Margin = new Thickness(0, 0, AppWindow.TitleBar.RightInset / Scale, 0);
+
+    private SizeInt32 Scaled(int width, int height) => new((int)(width * Scale), (int)(height * Scale));
+
+    private double Scale => GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)) / 96.0;
 
     private void AddKeyboardShortcuts()
     {

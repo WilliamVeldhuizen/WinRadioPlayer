@@ -106,8 +106,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         FavoriteTracks.CollectionChanged += OnFavoriteTracksChanged;
         Favorites.CollectionChanged += OnFavoritesChanged;
         SyncFavorites();
-        // After the favorites are loaded, because changing it saves the settings.
+        // After the favorites are loaded, because changing these saves the settings.
         ZappOnAdBreaks = _settings.ZappOnAdBreaks;
+        IsCompact = _settings.IsCompact;
     }
 
     /// <summary>
@@ -209,6 +210,25 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>Zap to another favorite during the ad breaks of the station being listened to, and back once they are over.</summary>
     [ObservableProperty]
     public partial bool ZappOnAdBreaks { get; set; }
+
+    /// <summary>
+    /// Whether the compact window is shown: only the favorites, to click and listen. Searching and adding favorites
+    /// is done in the full window.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsFullView))]
+    public partial bool IsCompact { get; set; }
+
+    public bool IsFullView => !IsCompact;
+
+    partial void OnIsCompactChanged(bool value)
+    {
+        _settings.IsCompact = value;
+        SaveSettings();
+    }
+
+    [RelayCommand]
+    private void ToggleCompact() => IsCompact = !IsCompact;
 
     public async Task LoadCatalogAsync()
     {

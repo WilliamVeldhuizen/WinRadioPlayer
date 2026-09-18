@@ -1,6 +1,7 @@
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
+using ZapperRadio.Core.Audio;
 using ZapperRadio.Playback;
 
 namespace ZapperRadio;
@@ -27,6 +28,21 @@ public static class UiHelpers
         isAd ? FailedBrush
         : isAssumedAdBreak ? StarOnBrush
         : (Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"];
+
+    /// <summary>The small indicator of a favorite in the compact view: green while it is live, yellow while it is
+    /// connecting or an ad break is only assumed, and red during an ad break or when the stream will not play.</summary>
+    public static Brush IndicatorBrush(StreamStatus status, bool isAd, bool isAssumedAdBreak) =>
+        isAd || status == StreamStatus.Failed ? FailedBrush
+        : isAssumedAdBreak || status != StreamStatus.Live ? BusyBrush
+        : LiveBrush;
+
+    /// <summary>Splits the green indicator: a note while the station plays music, a speech bubble while someone talks.</summary>
+    public static string IndicatorGlyph(Sound sound) => Glyph(sound == Sound.Speech ? 0xE90A : 0xE8D6); // Comment / MusicNote
+
+    public static string ViewGlyph(bool isCompact) => Glyph(isCompact ? 0xE740 : 0xE73F); // FullScreen / BackToWindow
+
+    public static string ViewToolTip(bool isCompact) =>
+        isCompact ? "Switch to the full window" : "Switch to the compact window";
 
     public static string StarGlyph(bool isFavorite) => Glyph(isFavorite ? 0xE735 : 0xE734); // FavoriteStarFill / FavoriteStar
 

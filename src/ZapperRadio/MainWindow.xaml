@@ -34,14 +34,37 @@
                 <Setter Property="Height" Value="36" />
                 <Setter Property="Padding" Value="0" />
             </Style>
+            <Style x:Key="CompactItemStyle" TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                <Setter Property="MinHeight" Value="0" />
+                <Setter Property="Padding" Value="10,0" />
+            </Style>
         </Grid.Resources>
 
         <!-- Title bar -->
         <Grid x:Name="AppTitleBar" Padding="16,0,0,0">
-            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                <FontIcon Glyph="&#xE93E;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Only this part is the drag area, so the button beside it keeps receiving clicks. -->
+            <StackPanel x:Name="TitleBarDragArea" Background="Transparent" Orientation="Horizontal" Spacing="10">
+                <FontIcon Glyph="&#xE93E;" FontSize="16" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
                 <TextBlock Text="ZapperRadio" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" />
             </StackPanel>
+
+            <!-- Sits left of the minimize, maximize and close buttons; its margin is set in code, as their width varies. -->
+            <Button
+                x:Name="ViewButton"
+                Grid.Column="1"
+                Style="{StaticResource IconButtonStyle}"
+                Width="40" Height="32"
+                VerticalAlignment="Center"
+                ToolTipService.ToolTip="{x:Bind local:UiHelpers.ViewToolTip(ViewModel.IsCompact), Mode=OneWay}"
+                AutomationProperties.Name="{x:Bind local:UiHelpers.ViewToolTip(ViewModel.IsCompact), Mode=OneWay}"
+                Command="{x:Bind ViewModel.ToggleCompactCommand}">
+                <FontIcon Glyph="{x:Bind local:UiHelpers.ViewGlyph(ViewModel.IsCompact), Mode=OneWay}" FontSize="14" />
+            </Button>
         </Grid>
 
         <InfoBar
@@ -51,7 +74,7 @@
             IsOpen="{x:Bind ViewModel.IsErrorOpen, Mode=TwoWay}"
             Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}" />
 
-        <Grid Grid.Row="2" Padding="12,0,12,12" ColumnSpacing="12">
+        <Grid Grid.Row="2" Padding="12,0,12,12" ColumnSpacing="12" Visibility="{x:Bind ViewModel.IsFullView, Mode=OneWay}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="360" />
                 <ColumnDefinition Width="*" />
@@ -344,9 +367,157 @@
             </Border>
         </Grid>
 
+        <!-- Compact view: the favorites, to click and listen, and nothing else. -->
+        <Grid Grid.Row="2" Padding="8,0,8,8" RowSpacing="8" Visibility="{x:Bind ViewModel.IsCompact, Mode=OneWay}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Border Style="{StaticResource CardStyle}" Padding="10,8">
+                <Grid ColumnSpacing="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <Grid Width="36" Height="36" VerticalAlignment="Center">
+                        <Ellipse Fill="{ThemeResource AccentFillColorDefaultBrush}" Visibility="{x:Bind ViewModel.NowPlayingLogo.ShowFallback, Mode=OneWay}" />
+                        <TextBlock
+                            Text="{x:Bind ViewModel.NowPlayingLogo.Initials, Mode=OneWay}"
+                            FontSize="13" FontWeight="SemiBold"
+                            Foreground="White"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                            Visibility="{x:Bind ViewModel.NowPlayingLogo.ShowFallback, Mode=OneWay}" />
+                        <Image
+                            Source="{x:Bind ViewModel.NowPlayingLogo.Source, Mode=OneWay}"
+                            Stretch="UniformToFill"
+                            Visibility="{x:Bind ViewModel.NowPlayingLogo.HasLogo, Mode=OneWay}"
+                            ImageOpened="NowPlayingLogo_ImageOpened"
+                            ImageFailed="NowPlayingLogo_ImageFailed" />
+                    </Grid>
+
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                        <TextBlock Text="{x:Bind ViewModel.NowPlayingName, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
+                        <StackPanel Orientation="Horizontal" Spacing="5" Visibility="{x:Bind ViewModel.HasNowPlayingSong, Mode=OneWay}">
+                            <FontIcon Glyph="&#xE8D6;" FontSize="11" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                            <TextBlock
+                                Text="{x:Bind ViewModel.NowPlayingSong, Mode=OneWay}"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                TextWrapping="NoWrap"
+                                TextTrimming="CharacterEllipsis"
+                                ToolTipService.ToolTip="{x:Bind ViewModel.NowPlayingSong, Mode=OneWay}" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Button
+                        Grid.Column="2"
+                        Style="{StaticResource AccentButtonStyle}"
+                        Width="36" Height="36" CornerRadius="18" Padding="0"
+                        VerticalAlignment="Center"
+                        ToolTipService.ToolTip="Play / stop (Ctrl+Space)"
+                        Command="{x:Bind ViewModel.TogglePlaybackCommand}">
+                        <FontIcon Glyph="{x:Bind local:UiHelpers.PlayGlyph(ViewModel.IsPlaying), Mode=OneWay}" FontSize="14" />
+                    </Button>
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="1" Style="{StaticResource CardStyle}">
+                <Grid>
+                    <TextBlock
+                        Margin="14"
+                        Text="No favorites yet. Switch to the full window to search for stations and add them with the star."
+                        TextWrapping="Wrap"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                        Visibility="{x:Bind ViewModel.HasNoFavorites, Mode=OneWay}" />
+
+                    <ListView
+                        Padding="0,6"
+                        ItemsSource="{x:Bind ViewModel.Favorites}"
+                        ItemContainerStyle="{StaticResource CompactItemStyle}"
+                        SelectionMode="None"
+                        IsItemClickEnabled="True"
+                        ItemClick="Favorite_ItemClick">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="vm:FavoriteViewModel">
+                                <Grid Height="44" ColumnSpacing="9">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="3" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="16" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <Rectangle
+                                        Height="22" VerticalAlignment="Center"
+                                        RadiusX="1.5" RadiusY="1.5"
+                                        Fill="{ThemeResource AccentFillColorDefaultBrush}"
+                                        Visibility="{x:Bind IsActive, Mode=OneWay}" />
+
+                                    <Grid Grid.Column="1" Width="28" Height="28" VerticalAlignment="Center">
+                                        <Ellipse Fill="{ThemeResource AccentFillColorDefaultBrush}" Visibility="{x:Bind Logo.ShowFallback, Mode=OneWay}" />
+                                        <TextBlock
+                                            Text="{x:Bind Logo.Initials, Mode=OneWay}"
+                                            FontSize="11" FontWeight="SemiBold"
+                                            Foreground="White"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            Visibility="{x:Bind Logo.ShowFallback, Mode=OneWay}" />
+                                        <Image
+                                            Source="{x:Bind Logo.Source, Mode=OneWay}"
+                                            Stretch="UniformToFill"
+                                            Visibility="{x:Bind Logo.HasLogo, Mode=OneWay}"
+                                            ImageOpened="FavoriteLogo_ImageOpened"
+                                            ImageFailed="FavoriteLogo_ImageFailed" />
+                                    </Grid>
+
+                                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                        <TextBlock Text="{x:Bind Name}" Style="{StaticResource BodyStrongTextBlockStyle}" FontSize="13" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Name}" />
+                                        <TextBlock
+                                            Text="{x:Bind Song, Mode=OneWay}"
+                                            Style="{StaticResource CaptionTextBlockStyle}"
+                                            Foreground="{x:Bind local:UiHelpers.SongBrush(IsAd, IsAssumedAdBreak), Mode=OneWay}"
+                                            TextWrapping="NoWrap"
+                                            TextTrimming="CharacterEllipsis"
+                                            ToolTipService.ToolTip="{x:Bind Song, Mode=OneWay}"
+                                            Visibility="{x:Bind HasSong, Mode=OneWay}" />
+                                        <TextBlock
+                                            Text="{x:Bind StatusText, Mode=OneWay}"
+                                            Style="{StaticResource CaptionTextBlockStyle}"
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                            TextWrapping="NoWrap"
+                                            TextTrimming="CharacterEllipsis"
+                                            Visibility="{x:Bind HasNoSong, Mode=OneWay}" />
+                                    </StackPanel>
+
+                                    <!-- Green while it is live: a note for music, a speech bubble while someone talks. -->
+                                    <Grid Grid.Column="3" VerticalAlignment="Center">
+                                        <Ellipse
+                                            Width="8" Height="8"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            Fill="{x:Bind local:UiHelpers.IndicatorBrush(Status, IsAd, IsAssumedAdBreak), Mode=OneWay}"
+                                            Visibility="{x:Bind ShowDotIndicator, Mode=OneWay}" />
+                                        <FontIcon
+                                            FontSize="13"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            Glyph="{x:Bind local:UiHelpers.IndicatorGlyph(Sound), Mode=OneWay}"
+                                            Foreground="{x:Bind local:UiHelpers.IndicatorBrush(Status, IsAd, IsAssumedAdBreak), Mode=OneWay}"
+                                            Visibility="{x:Bind ShowSoundIndicator, Mode=OneWay}" />
+                                    </Grid>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </Grid>
+            </Border>
+        </Grid>
+
         <!-- Now playing -->
         <Border
             Grid.Row="3"
+            Visibility="{x:Bind ViewModel.IsFullView, Mode=OneWay}"
             Padding="16,12"
             Background="{ThemeResource LayerFillColorDefaultBrush}"
             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"

@@ -21,6 +21,9 @@ public sealed class AppSettings
     /// <summary>Zap to another favorite during the ad breaks of the station being listened to, and back afterwards.</summary>
     public bool ZappOnAdBreaks { get; set; }
 
+    /// <summary>Whether the small window with only the favorites is shown instead of the full one.</summary>
+    public bool IsCompact { get; set; }
+
     /// <summary>What <see cref="ZappOnAdBreaks"/> was called before; only read, so older settings files keep the choice.</summary>
     [JsonPropertyName("SkipAdBreaks")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
