@@ -13,11 +13,13 @@
     </Window.SystemBackdrop>
 
     <Grid x:Name="Root">
+        <!-- Title bar, errors, the station being listened to, and then the view itself: the compact window
+             puts what is playing at the top too, so both views read the same way from top to bottom. -->
         <Grid.RowDefinitions>
             <RowDefinition Height="48" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
         <Grid.Resources>
@@ -81,7 +83,7 @@
             IsOpen="{x:Bind ViewModel.IsErrorOpen, Mode=TwoWay}"
             Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}" />
 
-        <Grid Grid.Row="2" Padding="12,0,12,12" ColumnSpacing="12" Visibility="{x:Bind ViewModel.IsFullView, Mode=OneWay}">
+        <Grid Grid.Row="3" Padding="12" ColumnSpacing="12" Visibility="{x:Bind ViewModel.IsFullView, Mode=OneWay}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="360" />
                 <ColumnDefinition Width="*" />
@@ -481,7 +483,7 @@
         </Grid>
 
         <!-- Compact view: the favorites, to click and listen, and nothing else. -->
-        <Grid Grid.Row="2" Padding="8,0,8,8" RowSpacing="8" Visibility="{x:Bind ViewModel.IsCompact, Mode=OneWay}">
+        <Grid Grid.Row="3" Padding="8,0,8,8" RowSpacing="8" Visibility="{x:Bind ViewModel.IsCompact, Mode=OneWay}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
@@ -674,14 +676,14 @@
             </Border>
         </Grid>
 
-        <!-- Now playing -->
+        <!-- Now playing, above the view it belongs to, as in the compact window. -->
         <Border
-            Grid.Row="3"
+            Grid.Row="2"
             Visibility="{x:Bind ViewModel.IsFullView, Mode=OneWay}"
             Padding="16,12"
             Background="{ThemeResource LayerFillColorDefaultBrush}"
             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-            BorderThickness="0,1,0,0">
+            BorderThickness="0,1,0,1">
             <Grid ColumnSpacing="16">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
