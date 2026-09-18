@@ -223,7 +223,7 @@
                                     <FontIcon Glyph="&#xE006;" />
                                 </SelectorBarItem.Icon>
                             </SelectorBarItem>
-                            <SelectorBarItem x:Name="PlayHistoryTab" Text="{x:Bind ViewModel.PlayHistoryHeader, Mode=OneWay}">
+                            <SelectorBarItem x:Name="PlayHistoryTab" Text="Play history">
                                 <SelectorBarItem.Icon>
                                     <FontIcon Glyph="&#xE81C;" />
                                 </SelectorBarItem.Icon>

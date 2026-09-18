@@ -174,8 +174,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>Everything the favorites played over the last twelve hours, newest first.</summary>
     public ObservableCollection<PlayedTrackViewModel> PlayHistory { get; } = [];
 
-    public string PlayHistoryHeader => $"Play history ({PlayHistory.Count})";
-
     public bool HasNoPlayHistory => PlayHistory.Count == 0;
 
     /// <summary>Which of the three tabs is shown.</summary>
@@ -603,7 +601,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void OnPlayHistoryChanged()
     {
-        OnPropertyChanged(nameof(PlayHistoryHeader));
         OnPropertyChanged(nameof(HasNoPlayHistory));
     }
 
