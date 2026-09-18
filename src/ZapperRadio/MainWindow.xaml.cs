@@ -37,6 +37,10 @@ public sealed partial class MainWindow : Window
             }
         };
 
+        // The compact window is fitted around its favorites, which are still being loaded when it opens.
+        Root.Loaded += (_, _) => FitCompactWindow();
+        ViewModel.Favorites.CollectionChanged += (_, _) => FitCompactWindow();
+
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
         _hotkeys = new GlobalHotkeys(hwnd, DispatcherQueue);
         ApplyGlobalHotkeys();
@@ -75,6 +79,9 @@ public sealed partial class MainWindow : Window
     private const int CompactWidth = 340;
     private const int CompactHeight = 520;
 
+    /// <summary>The shortest the compact window is ever fitted to, so a measurement that goes wrong cannot make it useless.</summary>
+    private const int CompactMinHeight = 200;
+
     /// <summary>The text field inside the country box while it has focus.</summary>
     private TextBox? _countryText;
 
@@ -98,37 +105,100 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Puts the window back where the view being shown was last left. The first time a view is used it gets its
-    /// default size, where the window already is.
+    /// Puts the window back where the view being shown was last left, maximized if that is how it was left.
+    /// The first time a view is used it gets its default size, where the window already is.
     /// </summary>
     private void PlaceWindow(bool compact)
     {
-        if (ViewModel.WindowPlacement(compact) is { } saved)
+        var saved = ViewModel.WindowPlacement(compact);
+        var presenter = AppWindow.Presenter as OverlappedPresenter;
+
+        // A maximized window cannot be moved or resized, so it is restored first and maximized again below.
+        if (presenter is { State: OverlappedPresenterState.Maximized })
+        {
+            presenter.Restore();
+        }
+
+        if (saved is not null)
         {
             MoveOnScreen(new PointInt32(saved.X, saved.Y), new SizeInt32(saved.Width, saved.Height));
-            return;
+        }
+        else
+        {
+            var scale = Scale;
+            MoveOnScreen(AppWindow.Position, new SizeInt32(
+                (int)((compact ? CompactWidth : FullWidth) * scale),
+                (int)((compact ? CompactHeight : FullHeight) * scale)));
         }
 
-        var scale = Scale;
-        MoveOnScreen(AppWindow.Position, new SizeInt32(
-            (int)((compact ? CompactWidth : FullWidth) * scale),
-            (int)((compact ? CompactHeight : FullHeight) * scale)));
+        if (saved is { IsMaximized: true })
+        {
+            presenter?.Maximize();
+        }
+        else if (compact)
+        {
+            FitCompactWindow();
+        }
     }
 
-    /// <summary>Remembers where the window is now, unless it is minimized or maximized, which is no size to return to.</summary>
-    private void RememberWindow(bool compact)
+    /// <summary>
+    /// Fits the compact window around its favorites. The list is the only thing in that window that varies, so
+    /// there is a right height for it: empty space under the last favorite and a scrollbar hiding the last few
+    /// are both wrong. The width and the corner it sits in stay the ones it was left at.
+    /// </summary>
+    private void FitCompactWindow()
     {
-        if (AppWindow.Presenter is not OverlappedPresenter { State: OverlappedPresenterState.Restored })
+        if (!ViewModel.IsCompact || AppWindow.Presenter is not OverlappedPresenter { State: OverlappedPresenterState.Restored })
         {
             return;
         }
+
+        // Nothing has been laid out yet when the app starts in the compact window; Loaded fits it then.
+        if (Root.ActualHeight <= 0)
+        {
+            return;
+        }
+
+        Root.UpdateLayout();
+
+        // Measured with all the height it could ask for, so what comes out is the room every favorite needs
+        // rather than the room the ones that happen to fit are given.
+        CompactView.Measure(new Windows.Foundation.Size(AppWindow.ClientSize.Width / Scale, double.PositiveInfinity));
+        var wanted = Root.RowDefinitions.Take(3).Sum(row => row.ActualHeight) + CompactView.DesiredSize.Height;
+        CompactView.InvalidateMeasure();
+
+        var work = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Nearest).WorkArea;
+        var chrome = AppWindow.Size.Height - AppWindow.ClientSize.Height;
+        var height = Math.Clamp((int)Math.Ceiling(wanted * Scale) + chrome, (int)(CompactMinHeight * Scale), work.Height);
+        if (Math.Abs(height - AppWindow.Size.Height) <= 1)
+        {
+            return;
+        }
+
+        MoveOnScreen(AppWindow.Position, new SizeInt32(AppWindow.Size.Width, height));
+    }
+
+    /// <summary>
+    /// Remembers where the window is now. A maximized window is no size to return to, so it keeps the size it had
+    /// before it was maximized and only notes that it was maximized; a minimized one says nothing at all.
+    /// </summary>
+    private void RememberWindow(bool compact)
+    {
+        if (AppWindow.Presenter is not OverlappedPresenter presenter || presenter.State == OverlappedPresenterState.Minimized)
+        {
+            return;
+        }
+
+        var maximized = presenter.State == OverlappedPresenterState.Maximized;
+        var restored = maximized ? ViewModel.WindowPlacement(compact) : null;
 
         ViewModel.RememberWindow(compact, new WindowPlacement
         {
-            X = AppWindow.Position.X,
-            Y = AppWindow.Position.Y,
-            Width = AppWindow.Size.Width,
-            Height = AppWindow.Size.Height,
+            X = restored?.X ?? AppWindow.Position.X,
+            Y = restored?.Y ?? AppWindow.Position.Y,
+            Width = restored?.Width ?? AppWindow.Size.Width,
+            Height = restored?.Height ?? AppWindow.Size.Height,
+            IsMaximized = maximized,
         });
     }
 

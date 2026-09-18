@@ -71,6 +71,12 @@ public sealed class WindowPlacement
     public int Width { get; set; }
 
     public int Height { get; set; }
+
+    /// <summary>
+    /// Whether the window was maximized. The size above is the one it had before that, which is what Windows
+    /// restores it to, so switching to the other view and back can put it back the way it was left.
+    /// </summary>
+    public bool IsMaximized { get; set; }
 }
 
 public sealed class SettingsStore(string path)

@@ -531,7 +531,7 @@
         </Grid>
 
         <!-- Compact view: the favorites, to click and listen, and nothing else. -->
-        <Grid Grid.Row="3" Padding="8,0,8,8" RowSpacing="8" Visibility="{x:Bind ViewModel.IsCompact, Mode=OneWay}">
+        <Grid x:Name="CompactView" Grid.Row="3" Padding="8,0,8,8" RowSpacing="8" Visibility="{x:Bind ViewModel.IsCompact, Mode=OneWay}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
