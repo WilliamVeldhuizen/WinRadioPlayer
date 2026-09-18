@@ -80,12 +80,25 @@ Favorite tracks, with the title tidied up (`TrackTitle`) and a heart per entry. 
 kept separate from the rewind and recording features above: `PlayHistory` is a list of titles, not
 of audio, so 1 and 2 still have to bring their own buffer.
 
-## 8. Links out to Spotify, YouTube and Apple Music
+## 8. Links out to Spotify and YouTube - built in 1.15.0
 
-A favorite track can only be copied as text today. A button per track that opens the song in
-Spotify (`spotify:search:` or the web player), YouTube Music or Apple Music closes the loop from
-"heard it on the radio" to "saved in my playlist". The iTunes Search API is already called in
-`TrackDurations`, so the exact track is often known. Very low effort.
+A favorite track could only be copied as text. A find button now sits next to the song that is
+playing, in both windows, and next to every favorite track and every entry in the play history,
+with Spotify and YouTube behind it. Apple Music was deliberately left out: two services cover
+where the songs actually go, and each extra one is another row in a menu that has to stay a glance.
+
+`Core/Models/TrackLinks` builds the links and is the whole of the logic: the words of the title
+with the separator dropped, escaped into `spotify:search:`, `open.spotify.com/search/` or
+`youtube.com/results`. A stream title is not a track id, so the link searches rather than opens
+the song, which has the pleasant side effect of covering the stations that send "Title - Artist"
+instead of "Artist - Title", because a search does not care about the order. `MainWindow` asks
+`Launcher.QueryUriSupportAsync` whether `spotify:` has a handler before using it, so Spotify opens
+in its app when it is installed and in its web player when it is not, without Windows offering to
+go looking for one in the Store.
+
+The iTunes Search API that `TrackDurations` already calls could pin the exact track rather than a
+search, and would give an Apple Music link for free, but it costs a lookup per click and misses
+often enough that a search is the better answer for a radio title.
 
 ## 9. Smarter zap rules
 
@@ -152,5 +165,5 @@ for music.
 
 ## Suggested order
 
-With 3, 4 and 12 built, 5 is next: it pairs with the media keys and is about a day. Then 1, because
+With 3, 4, 8 and 12 built, 5 is next: it pairs with the media keys and is about a day. Then 1, because
 it is the feature that cannot be copied without also keeping every stream open.

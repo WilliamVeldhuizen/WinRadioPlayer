@@ -339,6 +339,41 @@ public sealed partial class MainWindow : Window
     private void ToggleHistoryTrackSaved_Click(object sender, RoutedEventArgs e) =>
         ViewModel.ToggleHistoryTrackSaved((PlayedTrackViewModel)((FrameworkElement)sender).DataContext);
 
+    private async void OpenTrackInSpotify_Click(object sender, RoutedEventArgs e) =>
+        await OpenTrackAsync(MusicService.Spotify, (FrameworkElement)sender);
+
+    private async void OpenTrackOnYouTube_Click(object sender, RoutedEventArgs e) =>
+        await OpenTrackAsync(MusicService.YouTube, (FrameworkElement)sender);
+
+    /// <summary>
+    /// Searches the service for the song named in the tag of the item that was clicked. The app of the service
+    /// is asked first, so the song opens where you would save it, and its web player takes over when the app is
+    /// not installed; asking beforehand keeps Windows from offering to go looking for one in the Store.
+    /// </summary>
+    private static async Task OpenTrackAsync(MusicService service, FrameworkElement source)
+    {
+        if (source.Tag is not string title || TrackLinks.Web(service, title) is not { } web)
+        {
+            return;
+        }
+
+        try
+        {
+            if (TrackLinks.App(service, title) is { } app
+                && await Launcher.QueryUriSupportAsync(app, LaunchQuerySupportType.Uri) == LaunchQuerySupportStatus.Available)
+            {
+                await Launcher.LaunchUriAsync(app);
+                return;
+            }
+
+            await Launcher.LaunchUriAsync(web);
+        }
+        catch (Exception)
+        {
+            // Nothing can be done about a browser or an app that refuses to open; the song is still in the list.
+        }
+    }
+
     private static void CopyToClipboard(string text)
     {
         var package = new DataPackage();

@@ -339,7 +339,7 @@
 
                         <TextBlock
                             Padding="16,8,16,8"
-                            Text="Songs you saved with the heart next to the song that is playing. Copy a title to look it up in your music app."
+                            Text="Songs you saved with the heart next to the song that is playing. Find one on Spotify or YouTube, or copy its title."
                             Style="{StaticResource CaptionTextBlockStyle}"
                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                             TextWrapping="Wrap" />
@@ -364,6 +364,7 @@
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <StackPanel Spacing="2">
                                             <TextBlock Text="{x:Bind Title}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Title}" IsTextSelectionEnabled="True" />
@@ -377,12 +378,26 @@
                                             Grid.Column="1"
                                             Style="{StaticResource IconButtonStyle}"
                                             VerticalAlignment="Center"
+                                            ToolTipService.ToolTip="Find this song"
+                                            AutomationProperties.Name="Find this song">
+                                            <FontIcon Glyph="&#xE8A7;" FontSize="14" />
+                                            <Button.Flyout>
+                                                <MenuFlyout>
+                                                    <MenuFlyoutItem Text="Find on Spotify" Tag="{x:Bind Title}" Click="OpenTrackInSpotify_Click" />
+                                                    <MenuFlyoutItem Text="Find on YouTube" Tag="{x:Bind Title}" Click="OpenTrackOnYouTube_Click" />
+                                                </MenuFlyout>
+                                            </Button.Flyout>
+                                        </Button>
+                                        <Button
+                                            Grid.Column="2"
+                                            Style="{StaticResource IconButtonStyle}"
+                                            VerticalAlignment="Center"
                                             ToolTipService.ToolTip="Copy title"
                                             Click="CopyFavoriteTrack_Click">
                                             <FontIcon Glyph="&#xE8C8;" FontSize="14" />
                                         </Button>
                                         <Button
-                                            Grid.Column="2"
+                                            Grid.Column="3"
                                             Style="{StaticResource IconButtonStyle}"
                                             VerticalAlignment="Center"
                                             ToolTipService.ToolTip="Remove from favorite tracks"
@@ -463,6 +478,7 @@
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <StackPanel Spacing="2">
                                             <TextBlock Text="{x:Bind Title}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Title}" IsTextSelectionEnabled="True" />
@@ -485,6 +501,20 @@
                                         </Button>
                                         <Button
                                             Grid.Column="2"
+                                            Style="{StaticResource IconButtonStyle}"
+                                            VerticalAlignment="Center"
+                                            ToolTipService.ToolTip="Find this song"
+                                            AutomationProperties.Name="Find this song">
+                                            <FontIcon Glyph="&#xE8A7;" FontSize="14" />
+                                            <Button.Flyout>
+                                                <MenuFlyout>
+                                                    <MenuFlyoutItem Text="Find on Spotify" Tag="{x:Bind Title}" Click="OpenTrackInSpotify_Click" />
+                                                    <MenuFlyoutItem Text="Find on YouTube" Tag="{x:Bind Title}" Click="OpenTrackOnYouTube_Click" />
+                                                </MenuFlyout>
+                                            </Button.Flyout>
+                                        </Button>
+                                        <Button
+                                            Grid.Column="3"
                                             Style="{StaticResource IconButtonStyle}"
                                             VerticalAlignment="Center"
                                             ToolTipService.ToolTip="Copy title"
@@ -542,6 +572,7 @@
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <FontIcon Glyph="&#xE8D6;" FontSize="11" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
                             <TextBlock
@@ -566,6 +597,22 @@
                                     FontSize="17"
                                     Glyph="{x:Bind local:UiHelpers.HeartGlyph(ViewModel.IsNowPlayingTrackSaved), Mode=OneWay}"
                                     Foreground="{x:Bind local:UiHelpers.HeartBrush(ViewModel.IsNowPlayingTrackSaved), Mode=OneWay}" />
+                            </Button>
+                            <Button
+                                Grid.Column="3"
+                                Width="28" Height="28" Padding="0" Margin="0,-6"
+                                VerticalAlignment="Center"
+                                Background="Transparent" BorderThickness="0"
+                                Visibility="{x:Bind ViewModel.CanSaveNowPlayingTrack, Mode=OneWay}"
+                                ToolTipService.ToolTip="Find this song"
+                                AutomationProperties.Name="Find this song">
+                                <FontIcon Glyph="&#xE8A7;" FontSize="15" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                <Button.Flyout>
+                                    <MenuFlyout>
+                                        <MenuFlyoutItem Text="Find on Spotify" Tag="{x:Bind ViewModel.NowPlayingTrack, Mode=OneWay}" Click="OpenTrackInSpotify_Click" />
+                                        <MenuFlyoutItem Text="Find on YouTube" Tag="{x:Bind ViewModel.NowPlayingTrack, Mode=OneWay}" Click="OpenTrackOnYouTube_Click" />
+                                    </MenuFlyout>
+                                </Button.Flyout>
                             </Button>
                         </Grid>
                     </StackPanel>
@@ -748,6 +795,7 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="{x:Bind ViewModel.NowPlayingSong, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                             <Button
@@ -763,6 +811,22 @@
                                     FontSize="20"
                                     Glyph="{x:Bind local:UiHelpers.HeartGlyph(ViewModel.IsNowPlayingTrackSaved), Mode=OneWay}"
                                     Foreground="{x:Bind local:UiHelpers.HeartBrush(ViewModel.IsNowPlayingTrackSaved), Mode=OneWay}" />
+                            </Button>
+                            <Button
+                                Grid.Column="2"
+                                Width="32" Height="32" Padding="0" Margin="0,-6"
+                                VerticalAlignment="Center"
+                                Background="Transparent" BorderThickness="0"
+                                Visibility="{x:Bind ViewModel.CanSaveNowPlayingTrack, Mode=OneWay}"
+                                ToolTipService.ToolTip="Find this song"
+                                AutomationProperties.Name="Find this song">
+                                <FontIcon Glyph="&#xE8A7;" FontSize="16" />
+                                <Button.Flyout>
+                                    <MenuFlyout>
+                                        <MenuFlyoutItem Text="Find on Spotify" Tag="{x:Bind ViewModel.NowPlayingTrack, Mode=OneWay}" Click="OpenTrackInSpotify_Click" />
+                                        <MenuFlyoutItem Text="Find on YouTube" Tag="{x:Bind ViewModel.NowPlayingTrack, Mode=OneWay}" Click="OpenTrackOnYouTube_Click" />
+                                    </MenuFlyout>
+                                </Button.Flyout>
                             </Button>
                         </Grid>
                     </Grid>
