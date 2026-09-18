@@ -9,6 +9,7 @@ using Windows.Graphics;
 using Windows.System;
 using ZapperRadio.Core.Models;
 using ZapperRadio.Core.Settings;
+using ZapperRadio.Shell;
 using ZapperRadio.ViewModels;
 
 namespace ZapperRadio;
@@ -36,6 +37,11 @@ public sealed partial class MainWindow : Window
             }
         };
 
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        _hotkeys = new GlobalHotkeys(hwnd, DispatcherQueue);
+        ApplyGlobalHotkeys();
+        _systemMediaControls = SystemMediaControls.TryCreate(hwnd, DispatcherQueue, ViewModel);
+
         ViewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MainViewModel.IsCompact))
@@ -45,10 +51,20 @@ public sealed partial class MainWindow : Window
                 PlaceWindow(ViewModel.IsCompact);
                 ViewModel.Save();
             }
+            else if (e.PropertyName == nameof(MainViewModel.GlobalHotkeys))
+            {
+                ApplyGlobalHotkeys();
+            }
         };
 
         AddKeyboardShortcuts();
-        Closed += (_, _) => ViewModel.Dispose();
+
+        Closed += (_, _) =>
+        {
+            _hotkeys.Dispose();
+            _systemMediaControls?.Dispose();
+            ViewModel.Dispose();
+        };
 
         _ = ViewModel.LoadCatalogAsync();
     }
@@ -61,6 +77,12 @@ public sealed partial class MainWindow : Window
 
     /// <summary>The text field inside the country box while it has focus.</summary>
     private TextBox? _countryText;
+
+    /// <summary>The shortcuts that also work while another app has focus.</summary>
+    private readonly GlobalHotkeys _hotkeys;
+
+    /// <summary>The Windows media card, or null when Windows would not hand it out.</summary>
+    private readonly SystemMediaControls? _systemMediaControls;
 
     public MainViewModel ViewModel { get; }
 
@@ -142,6 +164,39 @@ public sealed partial class MainWindow : Window
             StationsTab.IsSelected = true;
             DispatcherQueue.TryEnqueue(() => SearchBox.Focus(FocusState.Keyboard));
         });
+    }
+
+    /// <summary>
+    /// Claims the same actions system wide, on Ctrl+Alt instead of Ctrl: the in-window shortcuts are left where
+    /// they are, because taking Ctrl+Space away from every other app would break typing and code completion.
+    /// Whatever another app already holds is named in the settings, since only the rest is registered.
+    /// </summary>
+    private void ApplyGlobalHotkeys()
+    {
+        _hotkeys.UnregisterAll();
+        if (!ViewModel.GlobalHotkeys)
+        {
+            ViewModel.GlobalHotkeyStatus = "";
+            return;
+        }
+
+        var taken = new List<string>();
+        Claim(VirtualKey.P, "Ctrl+Alt+P", () => ViewModel.TogglePlaybackCommand.Execute(null));
+        Claim(VirtualKey.M, "Ctrl+Alt+M", () => ViewModel.ToggleMuteCommand.Execute(null));
+        Claim(VirtualKey.Right, "Ctrl+Alt+Right", () => ViewModel.PlayNextFavoriteCommand.Execute(null));
+        Claim(VirtualKey.Left, "Ctrl+Alt+Left", () => ViewModel.PlayPreviousFavoriteCommand.Execute(null));
+
+        ViewModel.GlobalHotkeyStatus = taken.Count == 0
+            ? ""
+            : $"{string.Join(", ", taken)} {(taken.Count == 1 ? "is" : "are")} already in use by another app and will not work from outside the window.";
+
+        void Claim(VirtualKey key, string name, Action action)
+        {
+            if (!_hotkeys.Register(key, action))
+            {
+                taken.Add(name);
+            }
+        }
     }
 
     private void Tabs_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args) =>

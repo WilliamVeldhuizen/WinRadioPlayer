@@ -29,23 +29,22 @@ PCM of every stream is decoded anyway, so a running EBU R128-style loudness esti
 gives a per-station gain that is applied on unmute, and a manual per-station trim in the settings.
 Lives in `StationStream` / `RadioEngine`.
 
-## 4. Lock screen, media keys and global hotkeys
+## 4. Lock screen, media keys and global hotkeys - built in 1.11.0
 
-There is no `SystemMediaTransportControls` integration yet, which is the one Windows feature the app
-visibly lacks next to Spotify. One API gets all of it: the station logo, artist and title in the
-Windows volume flyout, the same card with play, pause and next on the **lock screen** while a station
-is playing, and play/pause and next from keyboard media keys and Bluetooth headsets, where "next"
-maps naturally to zapping to the next favorite.
+`Shell/SystemMediaControls` owns one `SystemMediaTransportControls` for the app and feeds it from what
+the window shows: the station, the song and the station logo in the volume flyout and on the lock
+screen, with play, pause, next and previous, which is also what the media keys of a keyboard or a
+headset press. Next and previous walk the favorites (`Core/Playback/FavoriteRing`), so the media keys
+zap. The per-player overlay stays off in `StationStream`, because twenty players would each claim the
+card. A WinUI 3 desktop app has no view to ask, so the controls are obtained for the window handle
+through `ISystemMediaTransportControlsInterop`; .NET does not marshal an IInspectable interface, so
+its one method is called through the vtable.
 
-Two things need care. `StationStream` deliberately turns the per-player overlay off
-(`_player.CommandManager.IsEnabled = false`), because up to twenty `MediaPlayer` instances are alive
-at once and each one would claim the overlay for itself; the controls therefore belong to the app,
-fed from `MainViewModel.UpdateNowPlaying`, which already has the station, the song and the logo URL.
-And a WinUI 3 desktop app has no view to ask, so `GetForCurrentView` does not apply: the controls are
-obtained for the window handle through `ISystemMediaTransportControlsInterop`.
-
-The existing `Ctrl+Space` and `Ctrl+M` shortcuts only work while the window has focus; registering
-them globally (`RegisterHotKey`) makes them work from any app. Low effort, high daily value.
+`Shell/GlobalHotkeys` claims `Ctrl+Alt+P`, `Ctrl+Alt+M`, `Ctrl+Alt+Right` and `Ctrl+Alt+Left` with
+`RegisterHotKey` and watches for WM_HOTKEY by chaining the window procedure. They are on `Ctrl+Alt`
+rather than on the `Ctrl+Space` and `Ctrl+M` of the window, because claiming those system wide would
+take them away from every other app. A combination another app already holds is named in the settings
+instead of failing, and the whole set can be switched off there.
 
 ## 5. Tray icon and minimize to tray
 
@@ -141,6 +140,6 @@ it says again, and can probably come down, which makes the real breaks show up s
 
 ## Suggested order
 
-Start with 4 and 5: about a day each, and they change how the app feels every day. Then 12, which is
-an afternoon and makes the zapper, the thing the app is named after, wrong less often. Then 1, because
+With 4 built, 5 is next: it pairs with the media keys and is about a day. Then 12, which is an
+afternoon and makes the zapper, the thing the app is named after, wrong less often. Then 1, because
 it is the feature that cannot be copied without also keeping every stream open.

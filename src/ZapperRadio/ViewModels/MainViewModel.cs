@@ -137,6 +137,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         SyncFavorites();
         // After the favorites are loaded, because changing these saves the settings.
         ZappOnAdBreaks = _settings.ZappOnAdBreaks;
+        GlobalHotkeys = _settings.GlobalHotkeys;
         IsCompact = _settings.IsCompact;
     }
 
@@ -215,6 +216,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public StationLogoViewModel NowPlayingLogo { get; } = new();
 
+    /// <summary>Where the logo of the station being listened to is, for the Windows media card to load as its thumbnail.</summary>
+    [ObservableProperty]
+    public partial string? NowPlayingLogoUrl { get; set; }
+
     [ObservableProperty]
     public partial string NowPlayingName { get; set; } = "Choose a station";
 
@@ -250,6 +255,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>Zap to another favorite during the ad breaks of the station being listened to, and back once they are over.</summary>
     [ObservableProperty]
     public partial bool ZappOnAdBreaks { get; set; }
+
+    /// <summary>Whether the Ctrl+Alt shortcuts also work while another app has focus.</summary>
+    [ObservableProperty]
+    public partial bool GlobalHotkeys { get; set; }
+
+    /// <summary>Which of the global shortcuts another app already holds, or empty when they all work.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasGlobalHotkeyProblem))]
+    public partial string GlobalHotkeyStatus { get; set; } = "";
+
+    public bool HasGlobalHotkeyProblem => GlobalHotkeyStatus.Length > 0;
 
     /// <summary>
     /// Whether the compact window is shown: only the favorites, to click and listen. Searching and adding favorites
@@ -454,6 +470,27 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             // Picking a station ends any zapping, and picking it during its ad break means you want to hear it anyway.
             _zapper.OnPicked(active.Station.Url, ChannelOf(active));
+        }
+    }
+
+    /// <summary>
+    /// Moves to the next favorite, wrapping around at the end of the list: the next-track button of the media
+    /// card and of the media keys, which is zapping by hand.
+    /// </summary>
+    [RelayCommand]
+    private void PlayNextFavorite() => StepFavorite(1);
+
+    /// <summary>Moves to the previous favorite, wrapping around at the start of the list.</summary>
+    [RelayCommand]
+    private void PlayPreviousFavorite() => StepFavorite(-1);
+
+    private void StepFavorite(int step)
+    {
+        var urls = Favorites.Select(f => f.Station.Url).ToList();
+        if (FavoriteRing.Step(urls, _engine.Active?.Station.Url, step) is { } url
+            && Favorites.FirstOrDefault(f => f.Station.Url == url) is { } favorite)
+        {
+            Play(favorite.Station);
         }
     }
 
@@ -677,6 +714,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     [RelayCommand]
     private void ToggleMute() => IsMuted = !IsMuted;
+
+    partial void OnGlobalHotkeysChanged(bool value)
+    {
+        _settings.GlobalHotkeys = value;
+        SaveSettings();
+    }
 
     partial void OnZappOnAdBreaksChanged(bool value)
     {
@@ -973,6 +1016,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (station is null)
         {
             _nowPlayingLogoStationUrl = null;
+            NowPlayingLogoUrl = null;
             NowPlayingLogo.Reset("");
             return;
         }
@@ -983,6 +1027,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         _nowPlayingLogoStationUrl = station.Url;
+        NowPlayingLogoUrl = null;
         NowPlayingLogo.Reset(station.Name);
         _ = LoadNowPlayingLogoAsync(station);
     }
@@ -994,6 +1039,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (_nowPlayingLogoStationUrl == station.Url)
         {
             NowPlayingLogo.SetLogoUrl(url);
+            NowPlayingLogoUrl = url;
         }
     }
 

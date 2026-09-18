@@ -819,6 +819,33 @@
                 </StackPanel>
 
                 <StackPanel Spacing="2">
+                    <TextBlock Text="Shortcuts" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                    <TextBlock
+                        Text="In the window: Ctrl+Space to stop or play, Ctrl+M to mute, Ctrl+F to search. The play, pause and next buttons of the Windows volume flyout, the lock screen, your media keys and your headset work too, where next and previous move through the favorites."
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        TextWrapping="Wrap" />
+                    <CheckBox
+                        Margin="0,6,0,0"
+                        Content="Shortcuts from any app"
+                        IsChecked="{x:Bind ViewModel.GlobalHotkeys, Mode=TwoWay}"
+                        ToolTipService.ToolTip="Also while you are working in another app. On Ctrl+Alt rather than Ctrl, because claiming Ctrl+Space for this app would take it away from every other one. A combination another app already holds is left to it and named below." />
+                    <TextBlock
+                        Margin="28,0,0,0"
+                        Text="Ctrl+Alt+P to stop or play, Ctrl+Alt+M to mute, Ctrl+Alt+Right and Ctrl+Alt+Left for the next and previous favorite, from whatever app you are working in."
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        TextWrapping="Wrap" />
+                    <TextBlock
+                        Margin="28,2,0,0"
+                        Text="{x:Bind ViewModel.GlobalHotkeyStatus, Mode=OneWay}"
+                        Visibility="{x:Bind ViewModel.HasGlobalHotkeyProblem, Mode=OneWay}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+
+                <StackPanel Spacing="2">
                     <TextBlock Text="Cached logos" Style="{StaticResource BodyStrongTextBlockStyle}" />
                     <TextBlock
                         Text="Station logos and the most-played lists are looked up once and then kept. Clearing them looks every logo up again, which helps when a station shows the wrong one. The station list itself is kept."

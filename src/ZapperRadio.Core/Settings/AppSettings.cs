@@ -24,6 +24,9 @@ public sealed class AppSettings
     /// <summary>Whether the small window with only the favorites is shown instead of the full one.</summary>
     public bool IsCompact { get; set; }
 
+    /// <summary>Whether the Ctrl+Alt shortcuts also work while another app has focus.</summary>
+    public bool GlobalHotkeys { get; set; } = true;
+
     /// <summary>Where the full window was last left, so switching back to it returns it there.</summary>
     public WindowPlacement? FullWindow { get; set; }
 
