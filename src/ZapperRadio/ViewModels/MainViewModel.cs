@@ -42,6 +42,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly PlayHistoryStore _historyStore;
     private readonly DispatcherQueueTimer _historySaveTimer;
     private readonly DispatcherQueueTimer _historyPruneTimer;
+    private readonly DispatcherQueueTimer _historySearchDebounce;
     private readonly DispatcherQueueTimer _trimSaveTimer;
 
     private List<StationResultViewModel> _allStations = [];
@@ -54,6 +55,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private string? _jumpListShown;
     private Task _jumpListUpdates = Task.CompletedTask;
     private bool _historyChanged;
+    private PlayedTrackFilter _historyFilter = new(null);
 
     public MainViewModel(DispatcherQueue dispatcher)
     {
@@ -125,6 +127,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _historyPruneTimer.Tick += (_, _) => PruneHistory();
         _historyPruneTimer.Start();
 
+        // Filtering redraws the whole list, so it waits for a pause in the typing, like the station search does.
+        _historySearchDebounce = dispatcher.CreateTimer();
+        _historySearchDebounce.Interval = TimeSpan.FromMilliseconds(250);
+        _historySearchDebounce.IsRepeating = false;
+        _historySearchDebounce.Tick += (_, _) => ApplyHistorySearch();
+
         _trimSaveTimer = dispatcher.CreateTimer();
         _trimSaveTimer.Interval = TimeSpan.FromMilliseconds(500);
         _trimSaveTimer.IsRepeating = false;
@@ -149,6 +157,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             PlayHistory.Add(new PlayedTrackViewModel(track) { IsSaved = FavoriteTracks.Any(t => t.IsSameSong(track.Title)) });
         }
+
+        ApplyHistorySearch();
 
         FavoriteTracks.CollectionChanged += OnFavoriteTracksChanged;
         Favorites.CollectionChanged += OnFavoritesChanged;
@@ -194,7 +204,23 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>Everything the favorites played over the last twelve hours, newest first.</summary>
     public ObservableCollection<PlayedTrackViewModel> PlayHistory { get; } = [];
 
+    /// <summary>
+    /// The part of <see cref="PlayHistory"/> the list shows: the songs matching <see cref="HistorySearchText"/>,
+    /// or all of them while the search box is empty.
+    /// </summary>
+    public ObservableCollection<PlayedTrackViewModel> PlayHistoryResults { get; } = [];
+
+    /// <summary>What to search the history for: words of a song, of an artist or of a station name.</summary>
+    [ObservableProperty]
+    public partial string HistorySearchText { get; set; } = "";
+
     public bool HasNoPlayHistory => PlayHistory.Count == 0;
+
+    /// <summary>Whether there is anything to search, which is what the search box waits for.</summary>
+    public bool HasPlayHistory => PlayHistory.Count > 0;
+
+    /// <summary>Whether songs were played but the search hides every one of them.</summary>
+    public bool HasNoHistoryMatches => PlayHistory.Count > 0 && PlayHistoryResults.Count == 0;
 
     /// <summary>Which of the three tabs is shown.</summary>
     [ObservableProperty]
@@ -611,7 +637,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         _history.Clear();
         PlayHistory.Clear();
-        OnPlayHistoryChanged();
+        // A search over an emptied history would only hide the line explaining that it is empty.
+        HistorySearchText = "";
+        ApplyHistorySearch();
         // Throwing it away is deliberate, so it does not sit in the file until the next save.
         _historyChanged = true;
         SaveHistory();
@@ -630,7 +658,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         if (_history.Add(title, stream.Station.Name, stream.Station.Url, DateTimeOffset.Now) is { } track)
         {
-            PlayHistory.Insert(0, new PlayedTrackViewModel(track) { IsSaved = FavoriteTracks.Any(t => t.IsSameSong(track.Title)) });
+            var entry = new PlayedTrackViewModel(track) { IsSaved = FavoriteTracks.Any(t => t.IsSameSong(track.Title)) };
+            PlayHistory.Insert(0, entry);
+            if (_historyFilter.Matches(track))
+            {
+                PlayHistoryResults.Insert(0, entry);
+            }
+
             TrimHistoryToModel();
             SaveHistoryLater();
             OnPlayHistoryChanged();
@@ -663,13 +697,41 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         while (PlayHistory.Count > _history.Count)
         {
+            var dropped = PlayHistory[^1];
             PlayHistory.RemoveAt(PlayHistory.Count - 1);
+            PlayHistoryResults.Remove(dropped);
         }
+    }
+
+    partial void OnHistorySearchTextChanged(string value)
+    {
+        _historySearchDebounce.Stop();
+        _historySearchDebounce.Start();
+    }
+
+    /// <summary>Puts the songs matching the search in the shown list, newest first like the history itself.</summary>
+    private void ApplyHistorySearch()
+    {
+        _historySearchDebounce.Stop();
+        _historyFilter = new PlayedTrackFilter(HistorySearchText);
+
+        PlayHistoryResults.Clear();
+        foreach (var entry in PlayHistory)
+        {
+            if (_historyFilter.Matches(entry.Track))
+            {
+                PlayHistoryResults.Add(entry);
+            }
+        }
+
+        OnPlayHistoryChanged();
     }
 
     private void OnPlayHistoryChanged()
     {
         OnPropertyChanged(nameof(HasNoPlayHistory));
+        OnPropertyChanged(nameof(HasPlayHistory));
+        OnPropertyChanged(nameof(HasNoHistoryMatches));
     }
 
     private void SaveHistory()

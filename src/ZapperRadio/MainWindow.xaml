@@ -399,10 +399,11 @@
                     <Grid Grid.Row="1" Visibility="{x:Bind ViewModel.IsShowingPlayHistory, Mode=OneWay}">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
-                        <Grid Padding="16,8,16,8" ColumnSpacing="8">
+                        <Grid Padding="16,8,16,4" ColumnSpacing="8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
@@ -425,18 +426,35 @@
                             </Button>
                         </Grid>
 
-                        <TextBlock
+                        <TextBox
+                            x:Name="HistorySearchBox"
                             Grid.Row="1"
+                            Margin="16,4,16,8"
+                            PlaceholderText="Search by song, artist or station (Ctrl+F)"
+                            AutomationProperties.Name="Search the play history"
+                            Visibility="{x:Bind ViewModel.HasPlayHistory, Mode=OneWay}"
+                            Text="{x:Bind ViewModel.HistorySearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                        <TextBlock
+                            Grid.Row="2"
                             Margin="16"
                             Text="Nothing played yet. As soon as your favorites are streaming, every song they play is listed here."
                             TextWrapping="Wrap"
                             Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                             Visibility="{x:Bind ViewModel.HasNoPlayHistory, Mode=OneWay}" />
 
+                        <TextBlock
+                            Grid.Row="2"
+                            Margin="16"
+                            Text="No song in the history matches your search."
+                            TextWrapping="Wrap"
+                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                            Visibility="{x:Bind ViewModel.HasNoHistoryMatches, Mode=OneWay}" />
+
                         <ListView
-                            Grid.Row="1"
+                            Grid.Row="2"
                             Padding="0,0,0,8"
-                            ItemsSource="{x:Bind ViewModel.PlayHistory}"
+                            ItemsSource="{x:Bind ViewModel.PlayHistoryResults}"
                             SelectionMode="None">
                             <ListView.ItemTemplate>
                                 <DataTemplate x:DataType="vm:PlayedTrackViewModel">

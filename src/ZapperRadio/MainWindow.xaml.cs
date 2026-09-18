@@ -160,7 +160,14 @@ public sealed partial class MainWindow : Window
         AddShortcut(VirtualKey.M, () => ViewModel.ToggleMuteCommand.Execute(null));
         AddShortcut(VirtualKey.F, () =>
         {
-            // The search box is on the stations tab; it only accepts focus once that tab is shown.
+            // The play history searches itself; every other tab searches the stations. A box only accepts
+            // focus once its own tab is shown, so the switch is given a turn to happen first.
+            if (ViewModel.SelectedTab == MainTab.PlayHistory)
+            {
+                HistorySearchBox.Focus(FocusState.Keyboard);
+                return;
+            }
+
             StationsTab.IsSelected = true;
             DispatcherQueue.TryEnqueue(() => SearchBox.Focus(FocusState.Keyboard));
         });
