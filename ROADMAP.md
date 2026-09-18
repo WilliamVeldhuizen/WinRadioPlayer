@@ -183,6 +183,20 @@ A `--minimized` argument carries the quiet start from the registry value into `A
 is where this meets 5: with a tray icon it should start into the tray rather than the taskbar, so the
 two are best built together.
 
+## 14. Guided tour on first launch
+
+A first-time window is a grid of stations and an empty favorites list, with nothing that says what
+makes this player different from any other. A short, dismissable tour on the very first launch -
+a few coach marks in sequence, not a modal wizard - points at the pieces that are not obvious from
+looking: heart a station to favorite it, the zap button, the loudness switch in settings, the find
+button that links out to Spotify and YouTube, and the compact window.
+
+`AppSettings` gains a `HasSeenTour` flag (default `false`), checked once in `App.OnLaunched` /
+`MainWindow` alongside the other first-run state, and set the moment the tour ends or is skipped, so
+it never shows again and never blocks a settings-file-less fresh install from being reset back into
+one either. A "show the tour again" entry in settings covers the case of an update landing a new
+tour step later.
+
 ## Suggested order
 
 With 3, 4, 8 and 12 built, 5 is next: it pairs with the media keys and is about a day, and 13 follows
