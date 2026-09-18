@@ -8,6 +8,7 @@ using Windows.ApplicationModel.DataTransfer;
 using Windows.Graphics;
 using Windows.System;
 using ZapperRadio.Core.Models;
+using ZapperRadio.Core.Settings;
 using ZapperRadio.ViewModels;
 
 namespace ZapperRadio;
@@ -26,13 +27,23 @@ public sealed partial class MainWindow : Window
         AppTitleBar.SizeChanged += (_, _) => KeepViewButtonClearOfCaptionButtons();
         KeepViewButtonClearOfCaptionButtons();
 
-        _fullSize = Scaled(FullWidth, FullHeight);
-        ShowCurrentView(rememberFullSize: false);
+        PlaceWindow(ViewModel.IsCompact);
+        AppWindow.Changed += (_, args) =>
+        {
+            if (args.DidPositionChange || args.DidSizeChange)
+            {
+                RememberWindow(ViewModel.IsCompact);
+            }
+        };
+
         ViewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MainViewModel.IsCompact))
             {
-                ShowCurrentView(rememberFullSize: true);
+                // IsCompact has already flipped, so the view being left is the other one.
+                RememberWindow(!ViewModel.IsCompact);
+                PlaceWindow(ViewModel.IsCompact);
+                ViewModel.Save();
             }
         };
 
@@ -42,15 +53,11 @@ public sealed partial class MainWindow : Window
         _ = ViewModel.LoadCatalogAsync();
     }
 
+    /// <summary>The size each view gets the first time it is used; after that, the size it was left at.</summary>
     private const int FullWidth = 1100;
     private const int FullHeight = 720;
-
-    /// <summary>The compact window shows about eight favorites; the rest is scrolled to.</summary>
     private const int CompactWidth = 340;
     private const int CompactHeight = 520;
-
-    /// <summary>The size of the full window, to return to when the compact view is left again.</summary>
-    private SizeInt32 _fullSize;
 
     /// <summary>The text field inside the country box while it has focus.</summary>
     private TextBox? _countryText;
@@ -68,29 +75,47 @@ public sealed partial class MainWindow : Window
         SetForegroundWindow(WinRT.Interop.WindowNative.GetWindowHandle(this));
     }
 
-    /// <summary>Gives the window the size of the view that is shown now.</summary>
-    private void ShowCurrentView(bool rememberFullSize)
+    /// <summary>
+    /// Puts the window back where the view being shown was last left. The first time a view is used it gets its
+    /// default size, where the window already is.
+    /// </summary>
+    private void PlaceWindow(bool compact)
     {
-        if (!ViewModel.IsCompact)
+        if (ViewModel.WindowPlacement(compact) is { } saved)
         {
-            ResizeOnScreen(_fullSize);
+            MoveOnScreen(new PointInt32(saved.X, saved.Y), new SizeInt32(saved.Width, saved.Height));
             return;
         }
 
-        if (rememberFullSize)
-        {
-            _fullSize = AppWindow.Size;
-        }
-
-        ResizeOnScreen(Scaled(CompactWidth, CompactHeight));
+        var scale = Scale;
+        MoveOnScreen(AppWindow.Position, new SizeInt32(
+            (int)((compact ? CompactWidth : FullWidth) * scale),
+            (int)((compact ? CompactHeight : FullHeight) * scale)));
     }
 
-    /// <summary>Resizes the window, keeping it on the screen it is on: growing it near an edge must not push it off.</summary>
-    private void ResizeOnScreen(SizeInt32 size)
+    /// <summary>Remembers where the window is now, unless it is minimized or maximized, which is no size to return to.</summary>
+    private void RememberWindow(bool compact)
     {
-        var work = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Nearest).WorkArea;
-        var x = Math.Clamp(AppWindow.Position.X, work.X, Math.Max(work.X, work.X + work.Width - size.Width));
-        var y = Math.Clamp(AppWindow.Position.Y, work.Y, Math.Max(work.Y, work.Y + work.Height - size.Height));
+        if (AppWindow.Presenter is not OverlappedPresenter { State: OverlappedPresenterState.Restored })
+        {
+            return;
+        }
+
+        ViewModel.RememberWindow(compact, new WindowPlacement
+        {
+            X = AppWindow.Position.X,
+            Y = AppWindow.Position.Y,
+            Width = AppWindow.Size.Width,
+            Height = AppWindow.Size.Height,
+        });
+    }
+
+    /// <summary>Moves the window, keeping it on the screen it lands on: a remembered spot may be gone with its monitor.</summary>
+    private void MoveOnScreen(PointInt32 position, SizeInt32 size)
+    {
+        var work = DisplayArea.GetFromPoint(position, DisplayAreaFallback.Nearest).WorkArea;
+        var x = Math.Clamp(position.X, work.X, Math.Max(work.X, work.X + work.Width - size.Width));
+        var y = Math.Clamp(position.Y, work.Y, Math.Max(work.Y, work.Y + work.Height - size.Height));
         AppWindow.MoveAndResize(new RectInt32(x, y, size.Width, size.Height));
     }
 
@@ -98,9 +123,14 @@ public sealed partial class MainWindow : Window
     private void KeepViewButtonClearOfCaptionButtons() =>
         ViewButton.Margin = new Thickness(0, 0, AppWindow.TitleBar.RightInset / Scale, 0);
 
-    private SizeInt32 Scaled(int width, int height) => new((int)(width * Scale), (int)(height * Scale));
-
     private double Scale => GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)) / 96.0;
+
+    private async void Settings_Click(object sender, RoutedEventArgs e)
+    {
+        ViewModel.RefreshCacheSummary();
+        SettingsDialog.XamlRoot = Root.XamlRoot;
+        await SettingsDialog.ShowAsync();
+    }
 
     private void AddKeyboardShortcuts()
     {

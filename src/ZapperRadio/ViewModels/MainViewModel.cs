@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Net;
+using System.Reflection;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Dispatching;
@@ -25,6 +26,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly HttpClient _http;
     private readonly SettingsStore _settingsStore;
     private readonly AppSettings _settings;
+    private readonly string _cacheFolder;
     private readonly StationDirectory _directory;
     private readonly StationPopularity _popularity;
     private readonly StationLogos _logos;
@@ -63,9 +65,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _isFirstRun = !File.Exists(settingsPath);
         _settingsStore = new SettingsStore(settingsPath);
         _settings = _settingsStore.Load();
-        _directory = new StationDirectory(_http, Path.Combine(dataFolder, "cache"));
-        _popularity = new StationPopularity(_http, Path.Combine(dataFolder, "cache"));
-        _logos = new StationLogos(_http, Path.Combine(dataFolder, "cache"));
+        _cacheFolder = Path.Combine(dataFolder, "cache");
+        _directory = new StationDirectory(_http, _cacheFolder);
+        _popularity = new StationPopularity(_http, _cacheFolder);
+        _logos = new StationLogos(_http, _cacheFolder);
 
         // Streams run for hours, so the relay gets a client without the overall request timeout.
         _streamHttp = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
@@ -230,6 +233,101 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void ToggleCompact() => IsCompact = !IsCompact;
 
+    /// <summary>Where the compact or the full window was last left, or null when it has not been used yet.</summary>
+    public WindowPlacement? WindowPlacement(bool compact) => compact ? _settings.CompactWindow : _settings.FullWindow;
+
+    /// <summary>Remembers where a window is; kept in memory until <see cref="Save"/>, as it changes with every drag.</summary>
+    public void RememberWindow(bool compact, WindowPlacement placement)
+    {
+        if (compact)
+        {
+            _settings.CompactWindow = placement;
+        }
+        else
+        {
+            _settings.FullWindow = placement;
+        }
+    }
+
+    /// <summary>Writes the settings out, e.g. once the window has been moved or resized.</summary>
+    public void Save() => SaveSettings();
+
+    /// <summary>The version of the app, as shown in the settings.</summary>
+    public string AppVersion { get; } =
+        typeof(MainViewModel).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion.Split('+')[0]
+        ?? typeof(MainViewModel).Assembly.GetName().Version?.ToString(3)
+        ?? "";
+
+    /// <summary>The file the station list was read from, e.g. <c>stations-2026-09-17.rsd</c>.</summary>
+    [ObservableProperty]
+    public partial string StationListName { get; set; } = "";
+
+    /// <summary>When the station list was downloaded, which is not the day it was generated.</summary>
+    [ObservableProperty]
+    public partial string StationListUpdated { get; set; } = "";
+
+    /// <summary>How much the logo and popularity lookups take up on disk.</summary>
+    [ObservableProperty]
+    public partial string CacheSummary { get; set; } = "";
+
+    /// <summary>Counts what the cache holds; called each time the settings are opened.</summary>
+    public void RefreshCacheSummary()
+    {
+        try
+        {
+            var files = CachedLookups().Select(file => new FileInfo(file).Length).ToList();
+            var bytes = files.Sum();
+            CacheSummary = files.Count == 0
+                ? "Nothing cached yet"
+                : $"{files.Count:N0} lookups · {(bytes < 1024 * 1024 ? $"{bytes / 1024.0:N0} KB" : $"{bytes / (1024.0 * 1024):N1} MB")}";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            CacheSummary = "";
+        }
+    }
+
+    private IEnumerable<string> CachedLookups() =>
+        Directory.Exists(_cacheFolder)
+            ? Directory.EnumerateFiles(_cacheFolder, "logo-*.txt").Concat(Directory.EnumerateFiles(_cacheFolder, "popularity-*.txt"))
+            : [];
+
+    /// <summary>
+    /// Throws away the logos and the most-played lists, and looks them up again. The station list itself is kept:
+    /// it is the one thing in the cache that also works offline, and it has its own button to check for a new one.
+    /// </summary>
+    [RelayCommand]
+    private async Task ClearCacheAsync()
+    {
+        _logos.Clear();
+        try
+        {
+            foreach (var file in CachedLookups().ToList())
+            {
+                File.Delete(file);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            ShowError($"Could not clear the cache: {ex.Message}");
+        }
+
+        _popularityByCountry.Clear();
+        RefreshCacheSummary();
+
+        foreach (var favorite in Favorites)
+        {
+            favorite.Logo.Reset(favorite.Name);
+            _ = LoadFavoriteLogoAsync(favorite);
+        }
+
+        // The logo of the station being listened to is loaded for the station, not for a favorite.
+        _nowPlayingLogoStationUrl = null;
+        UpdateNowPlaying();
+        await ApplySearchAsync();
+    }
+
     public async Task LoadCatalogAsync()
     {
         if (IsLoading)
@@ -278,6 +376,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             var date = catalog.GeneratedAt?.ToString("MMMM d, yyyy", EnglishCulture) ?? catalog.FileName;
             CatalogStatus = $"{_allStations.Count:N0} stations · list from {date}" + (catalog.FromCache ? " (offline copy)" : "");
+            UpdateStationListInfo(catalog.FileName);
             await ApplySearchAsync();
         }
         catch (Exception ex)
@@ -293,6 +392,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     [RelayCommand]
     private Task ReloadCatalog() => LoadCatalogAsync();
+
+    private void UpdateStationListInfo(string fileName)
+    {
+        StationListName = fileName;
+        try
+        {
+            var path = Path.Combine(_cacheFolder, fileName);
+            StationListUpdated = File.Exists(path)
+                ? $"Downloaded on {File.GetLastWriteTime(path).ToString("MMMM d, yyyy 'at' HH:mm", EnglishCulture)}"
+                : "";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            StationListUpdated = "";
+        }
+    }
 
     public void Play(Station station)
     {

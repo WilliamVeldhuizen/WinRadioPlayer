@@ -82,6 +82,57 @@ public class StationLogosTests
     }
 
     [Fact]
+    public async Task Clear_ForgetsTheLogosOnDiskAndInThisSession_SoTheyAreLookedUpAgain()
+    {
+        var cache = Path.Combine(Path.GetTempPath(), "ZapperRadioTests", Guid.NewGuid().ToString("N"));
+        try
+        {
+            var searchRequests = 0;
+            var handler = new FakeHandler(uri =>
+            {
+                if (uri.AbsolutePath.Contains("stations/search"))
+                {
+                    searchRequests++;
+                    return """[{"url":"http://station.example/", "favicon":"http://good.example/logo.png"}]""";
+                }
+
+                return "";
+            });
+            var logos = new StationLogos(new HttpClient(handler), cache, [new Uri("https://api.example/")]);
+
+            Assert.Equal("http://good.example/logo.png", await logos.GetLogoUrlAsync(Station("http://station.example/")));
+            Assert.Equal(1, searchRequests);
+
+            // The station list lives in the same folder and must survive.
+            var stationList = Path.Combine(cache, "stations-2026-09-17.rsd");
+            await File.WriteAllTextAsync(stationList, "the station list");
+
+            logos.Clear();
+
+            Assert.Empty(Directory.GetFiles(cache, "logo-*.txt"));
+            Assert.True(File.Exists(stationList));
+
+            // The same instance looks it up again rather than answering from what it found before.
+            Assert.Equal("http://good.example/logo.png", await logos.GetLogoUrlAsync(Station("http://station.example/")));
+            Assert.Equal(2, searchRequests);
+        }
+        finally
+        {
+            if (Directory.Exists(cache)) Directory.Delete(cache, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Clear_DoesNothingWhenNothingWasCachedYet()
+    {
+        var cache = Path.Combine(Path.GetTempPath(), "ZapperRadioTests", Guid.NewGuid().ToString("N"));
+
+        new StationLogos(new HttpClient(new FakeHandler(_ => null)), cache).Clear();
+
+        Assert.False(Directory.Exists(cache));
+    }
+
+    [Fact]
     public async Task GetLogoUrlAsync_ReturnsNullWhenNoFaviconIsReachable()
     {
         var cache = Path.Combine(Path.GetTempPath(), "ZapperRadioTests", Guid.NewGuid().ToString("N"));

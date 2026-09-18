@@ -199,18 +199,35 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <SelectorBar x:Name="Tabs" Margin="8,4,8,0" SelectionChanged="Tabs_SelectionChanged">
-                        <SelectorBarItem x:Name="StationsTab" Text="Stations" IsSelected="True">
-                            <SelectorBarItem.Icon>
-                                <FontIcon Glyph="&#xE93E;" />
-                            </SelectorBarItem.Icon>
-                        </SelectorBarItem>
-                        <SelectorBarItem x:Name="FavoriteTracksTab" Text="{x:Bind ViewModel.FavoriteTracksHeader, Mode=OneWay}">
-                            <SelectorBarItem.Icon>
-                                <FontIcon Glyph="&#xE006;" />
-                            </SelectorBarItem.Icon>
-                        </SelectorBarItem>
-                    </SelectorBar>
+                    <Grid Margin="8,4,8,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <SelectorBar x:Name="Tabs" SelectionChanged="Tabs_SelectionChanged">
+                            <SelectorBarItem x:Name="StationsTab" Text="Stations" IsSelected="True">
+                                <SelectorBarItem.Icon>
+                                    <FontIcon Glyph="&#xE93E;" />
+                                </SelectorBarItem.Icon>
+                            </SelectorBarItem>
+                            <SelectorBarItem x:Name="FavoriteTracksTab" Text="{x:Bind ViewModel.FavoriteTracksHeader, Mode=OneWay}">
+                                <SelectorBarItem.Icon>
+                                    <FontIcon Glyph="&#xE006;" />
+                                </SelectorBarItem.Icon>
+                            </SelectorBarItem>
+                        </SelectorBar>
+
+                        <Button
+                            Grid.Column="1"
+                            Style="{StaticResource IconButtonStyle}"
+                            VerticalAlignment="Center"
+                            ToolTipService.ToolTip="Settings"
+                            AutomationProperties.Name="Settings"
+                            Click="Settings_Click">
+                            <FontIcon Glyph="&#xE713;" FontSize="16" />
+                        </Button>
+                    </Grid>
 
                     <!-- Station search -->
                     <Grid Grid.Row="1" Visibility="{x:Bind ViewModel.IsShowingStations, Mode=OneWay}">
@@ -400,16 +417,37 @@
 
                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
                         <TextBlock Text="{x:Bind ViewModel.NowPlayingName, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
-                        <StackPanel Orientation="Horizontal" Spacing="5" Visibility="{x:Bind ViewModel.HasNowPlayingSong, Mode=OneWay}">
+                        <Grid ColumnSpacing="5" Visibility="{x:Bind ViewModel.HasNowPlayingSong, Mode=OneWay}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
                             <FontIcon Glyph="&#xE8D6;" FontSize="11" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
                             <TextBlock
+                                Grid.Column="1"
+                                VerticalAlignment="Center"
                                 Text="{x:Bind ViewModel.NowPlayingSong, Mode=OneWay}"
                                 Style="{StaticResource CaptionTextBlockStyle}"
                                 Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
                                 TextWrapping="NoWrap"
                                 TextTrimming="CharacterEllipsis"
                                 ToolTipService.ToolTip="{x:Bind ViewModel.NowPlayingSong, Mode=OneWay}" />
-                        </StackPanel>
+                            <Button
+                                Grid.Column="2"
+                                Width="28" Height="28" Padding="0" Margin="0,-6"
+                                VerticalAlignment="Center"
+                                Background="Transparent" BorderThickness="0"
+                                Visibility="{x:Bind ViewModel.CanSaveNowPlayingTrack, Mode=OneWay}"
+                                ToolTipService.ToolTip="{x:Bind local:UiHelpers.SaveTrackToolTip(ViewModel.IsNowPlayingTrackSaved), Mode=OneWay}"
+                                AutomationProperties.Name="{x:Bind local:UiHelpers.SaveTrackToolTip(ViewModel.IsNowPlayingTrackSaved), Mode=OneWay}"
+                                Command="{x:Bind ViewModel.ToggleNowPlayingTrackSavedCommand}">
+                                <FontIcon
+                                    FontSize="17"
+                                    Glyph="{x:Bind local:UiHelpers.HeartGlyph(ViewModel.IsNowPlayingTrackSaved), Mode=OneWay}"
+                                    Foreground="{x:Bind local:UiHelpers.HeartBrush(ViewModel.IsNowPlayingTrackSaved), Mode=OneWay}" />
+                            </Button>
+                        </Grid>
                     </StackPanel>
 
                     <Button
@@ -610,5 +648,62 @@
                     Value="{x:Bind ViewModel.Volume, Mode=TwoWay}" />
             </Grid>
         </Border>
+
+        <!-- Shown from the button next to the tabs; nothing of it is drawn until then. -->
+        <ContentDialog
+            x:Name="SettingsDialog"
+            Title="Settings"
+            CloseButtonText="Close"
+            DefaultButton="Close">
+            <StackPanel Width="380" Spacing="18">
+                <StackPanel Spacing="2">
+                    <TextBlock Text="Version" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                    <TextBlock
+                        Text="{x:Bind ViewModel.AppVersion}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+
+                <StackPanel Spacing="2">
+                    <TextBlock Text="Station list" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                    <TextBlock
+                        Text="{x:Bind ViewModel.StationListName, Mode=OneWay}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        TextTrimming="CharacterEllipsis" />
+                    <TextBlock
+                        Text="{x:Bind ViewModel.CatalogStatus, Mode=OneWay}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        TextWrapping="Wrap" />
+                    <TextBlock
+                        Text="{x:Bind ViewModel.StationListUpdated, Mode=OneWay}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <Button
+                        Margin="0,8,0,0"
+                        Content="Check for a newer list"
+                        Command="{x:Bind ViewModel.ReloadCatalogCommand}" />
+                </StackPanel>
+
+                <StackPanel Spacing="2">
+                    <TextBlock Text="Cached logos" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                    <TextBlock
+                        Text="Station logos and the most-played lists are looked up once and then kept. Clearing them looks every logo up again, which helps when a station shows the wrong one. The station list itself is kept."
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        TextWrapping="Wrap" />
+                    <TextBlock
+                        Margin="0,4,0,0"
+                        Text="{x:Bind ViewModel.CacheSummary, Mode=OneWay}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <Button
+                        Margin="0,8,0,0"
+                        Content="Clear cache"
+                        Command="{x:Bind ViewModel.ClearCacheCommand}" />
+                </StackPanel>
+            </StackPanel>
+        </ContentDialog>
     </Grid>
 </Window>

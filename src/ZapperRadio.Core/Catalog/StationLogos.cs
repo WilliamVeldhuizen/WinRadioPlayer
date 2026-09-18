@@ -31,6 +31,35 @@ public sealed class StationLogos(HttpClient http, string cacheFolder, IReadOnlyL
         }
     }
 
+    /// <summary>
+    /// Throws away every logo found so far, on disk and in this session, so they are looked up again. For when a
+    /// station changed its logo, or the wrong one was found for it.
+    /// </summary>
+    public void Clear()
+    {
+        lock (_lookups)
+        {
+            _lookups.Clear();
+        }
+
+        if (!Directory.Exists(cacheFolder))
+        {
+            return;
+        }
+
+        foreach (var file in Directory.EnumerateFiles(cacheFolder, "logo-*.txt"))
+        {
+            try
+            {
+                File.Delete(file);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // A logo that cannot be deleted is simply used again.
+            }
+        }
+    }
+
     private async Task<string?> LoadAsync(Station station, CancellationToken cancellationToken)
     {
         var cacheFile = Path.Combine(cacheFolder, $"logo-{SafeFileName(station.Url)}.txt");

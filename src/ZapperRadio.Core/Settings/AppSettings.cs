@@ -24,6 +24,12 @@ public sealed class AppSettings
     /// <summary>Whether the small window with only the favorites is shown instead of the full one.</summary>
     public bool IsCompact { get; set; }
 
+    /// <summary>Where the full window was last left, so switching back to it returns it there.</summary>
+    public WindowPlacement? FullWindow { get; set; }
+
+    /// <summary>Where the compact window was last left; it is remembered apart from the full one.</summary>
+    public WindowPlacement? CompactWindow { get; set; }
+
     /// <summary>What <see cref="ZappOnAdBreaks"/> was called before; only read, so older settings files keep the choice.</summary>
     [JsonPropertyName("SkipAdBreaks")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -38,6 +44,18 @@ public sealed class AppSettings
             }
         }
     }
+}
+
+/// <summary>Where a window was, in the physical pixels the Windows App SDK positions windows in.</summary>
+public sealed class WindowPlacement
+{
+    public int X { get; set; }
+
+    public int Y { get; set; }
+
+    public int Width { get; set; }
+
+    public int Height { get; set; }
 }
 
 public sealed class SettingsStore(string path)
