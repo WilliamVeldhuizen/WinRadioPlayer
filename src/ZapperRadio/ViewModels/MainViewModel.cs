@@ -37,6 +37,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly RadioEngine _engine;
     private readonly DispatcherQueueTimer _searchDebounce;
     private readonly DispatcherQueueTimer _jumpListTimer;
+    private readonly Core.Playback.PlayHistory _history = new();
+    private readonly PlayHistoryStore _historyStore;
+    private readonly DispatcherQueueTimer _historySaveTimer;
+    private readonly DispatcherQueueTimer _historyPruneTimer;
 
     private List<StationResultViewModel> _allStations = [];
     private CancellationTokenSource? _searchCts;
@@ -47,6 +51,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private string? _nowPlayingLogoStationUrl;
     private string? _jumpListShown;
     private Task _jumpListUpdates = Task.CompletedTask;
+    private bool _historyChanged;
 
     public MainViewModel(DispatcherQueue dispatcher)
     {
@@ -91,6 +96,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _jumpListTimer.IsRepeating = false;
         _jumpListTimer.Tick += (_, _) => UpdateJumpList(withSongs: true);
 
+        _historyStore = new PlayHistoryStore(Path.Combine(dataFolder, "play-history.json"));
+
+        // Every song of every favorite changes the history, which is far too often to write the file for.
+        _historySaveTimer = dispatcher.CreateTimer();
+        _historySaveTimer.Interval = TimeSpan.FromMinutes(2);
+        _historySaveTimer.IsRepeating = false;
+        _historySaveTimer.Tick += (_, _) => SaveHistory();
+
+        // Songs also expire while nothing new comes in, for example overnight.
+        _historyPruneTimer = dispatcher.CreateTimer();
+        _historyPruneTimer.Interval = TimeSpan.FromMinutes(5);
+        _historyPruneTimer.Tick += (_, _) => PruneHistory();
+        _historyPruneTimer.Start();
+
         Volume = _engine.Volume * 100;
         SelectedCountry = _settings.Country ?? AllCountries;
 
@@ -104,6 +123,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         foreach (var track in _settings.FavoriteTracks)
         {
             FavoriteTracks.Add(track);
+        }
+
+        // After the favorite tracks, so each song in the history knows whether it is one of them.
+        _history.Load(_historyStore.Load(), DateTimeOffset.Now);
+        foreach (var track in _history.Entries)
+        {
+            PlayHistory.Add(new PlayedTrackViewModel(track) { IsSaved = FavoriteTracks.Any(t => t.IsSameSong(track.Title)) });
         }
 
         FavoriteTracks.CollectionChanged += OnFavoriteTracksChanged;
@@ -145,12 +171,25 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool HasNoFavoriteTracks => FavoriteTracks.Count == 0;
 
-    /// <summary>Whether the favorite tracks are shown instead of the station search.</summary>
+    /// <summary>Everything the favorites played over the last twelve hours, newest first.</summary>
+    public ObservableCollection<PlayedTrackViewModel> PlayHistory { get; } = [];
+
+    public string PlayHistoryHeader => $"Play history ({PlayHistory.Count})";
+
+    public bool HasNoPlayHistory => PlayHistory.Count == 0;
+
+    /// <summary>Which of the three tabs is shown.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsShowingStations))]
-    public partial bool IsShowingFavoriteTracks { get; set; }
+    [NotifyPropertyChangedFor(nameof(IsShowingFavoriteTracks))]
+    [NotifyPropertyChangedFor(nameof(IsShowingPlayHistory))]
+    public partial MainTab SelectedTab { get; set; }
 
-    public bool IsShowingStations => !IsShowingFavoriteTracks;
+    public bool IsShowingStations => SelectedTab == MainTab.Stations;
+
+    public bool IsShowingFavoriteTracks => SelectedTab == MainTab.FavoriteTracks;
+
+    public bool IsShowingPlayHistory => SelectedTab == MainTab.PlayHistory;
 
     [ObservableProperty]
     public partial IReadOnlyList<StationResultViewModel> Results { get; set; } = [];
@@ -487,6 +526,106 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public void RemoveFavoriteTrack(FavoriteTrack track) => FavoriteTracks.Remove(track);
 
+    /// <summary>Saves a song from the play history to the favorite tracks, or removes it when it is already there.</summary>
+    public void ToggleHistoryTrackSaved(PlayedTrackViewModel entry)
+    {
+        if (FavoriteTracks.FirstOrDefault(t => t.IsSameSong(entry.Title)) is { } saved)
+        {
+            FavoriteTracks.Remove(saved);
+        }
+        else
+        {
+            FavoriteTracks.Insert(0, new FavoriteTrack(entry.Title, entry.Track.StationName, entry.Track.PlayedAt));
+        }
+    }
+
+    /// <summary>Empties the play history, for when you would rather not keep what was played.</summary>
+    [RelayCommand]
+    private void ClearPlayHistory()
+    {
+        _history.Clear();
+        PlayHistory.Clear();
+        OnPlayHistoryChanged();
+        // Throwing it away is deliberate, so it does not sit in the file until the next save.
+        _historyChanged = true;
+        SaveHistory();
+    }
+
+    /// <summary>
+    /// Notes the song a station just started. Every stream reports its titles, listened to or not, so the
+    /// history covers all favorites. Ad markers and the repeated title after a reconnect are left out.
+    /// </summary>
+    private void RecordPlayed(StationStream stream)
+    {
+        if (stream.Metadata is not { IsAd: false, Title: { } title })
+        {
+            return;
+        }
+
+        if (_history.Add(title, stream.Station.Name, stream.Station.Url, DateTimeOffset.Now) is { } track)
+        {
+            PlayHistory.Insert(0, new PlayedTrackViewModel(track) { IsSaved = FavoriteTracks.Any(t => t.IsSameSong(track.Title)) });
+            TrimHistoryToModel();
+            SaveHistoryLater();
+            OnPlayHistoryChanged();
+        }
+    }
+
+    private void PruneHistory()
+    {
+        var before = _history.Count;
+        _history.Prune(DateTimeOffset.Now);
+        if (_history.Count != before)
+        {
+            TrimHistoryToModel();
+            SaveHistoryLater();
+            OnPlayHistoryChanged();
+        }
+    }
+
+    private void SaveHistoryLater()
+    {
+        _historyChanged = true;
+        if (!_historySaveTimer.IsRunning)
+        {
+            _historySaveTimer.Start();
+        }
+    }
+
+    /// <summary>The history only ever loses its oldest songs, so the shown rows follow it from the end.</summary>
+    private void TrimHistoryToModel()
+    {
+        while (PlayHistory.Count > _history.Count)
+        {
+            PlayHistory.RemoveAt(PlayHistory.Count - 1);
+        }
+    }
+
+    private void OnPlayHistoryChanged()
+    {
+        OnPropertyChanged(nameof(PlayHistoryHeader));
+        OnPropertyChanged(nameof(HasNoPlayHistory));
+    }
+
+    private void SaveHistory()
+    {
+        _historySaveTimer.Stop();
+        if (!_historyChanged)
+        {
+            return;
+        }
+
+        _historyChanged = false;
+        try
+        {
+            _historyStore.Save(_history.Entries);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // The history is a convenience; failing to keep it is not worth interrupting for.
+        }
+    }
+
     partial void OnSearchTextChanged(string value)
     {
         _searchDebounce.Stop();
@@ -665,6 +804,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         OnPropertyChanged(nameof(FavoriteTracksHeader));
         OnPropertyChanged(nameof(HasNoFavoriteTracks));
+        foreach (var entry in PlayHistory)
+        {
+            entry.IsSaved = FavoriteTracks.Any(t => t.IsSameSong(entry.Title));
+        }
+
         UpdateNowPlaying();
         SaveSettings();
     }
@@ -678,6 +822,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             if (_engine.Find(favorite.Station.Url) is { } stream)
             {
+                RecordPlayed(stream);
                 favorite.Status = stream.Status;
                 favorite.Sound = stream.Sound;
                 favorite.Song = SongTexts.For(stream);
@@ -772,6 +917,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void OnStreamMetadataChanged(StationStream stream)
     {
+        RecordPlayed(stream);
         foreach (var favorite in Favorites.Where(f => f.Station.Url == stream.Station.Url))
         {
             favorite.Sound = stream.Sound;
@@ -816,7 +962,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         NowPlayingName = active.Station.Name;
         var isFavorite = Favorites.Any(f => f.Station.Url == active.Station.Url);
         NowPlayingSong = SongTexts.For(active);
-        NowPlayingTrack = active is { IsInAdBreak: false, Metadata.Title: { } title } ? title : null;
+        NowPlayingTrack = active is { IsInAdBreak: false, Metadata.Title: { } title } ? TrackTitle.Normalize(title) : null;
         IsNowPlayingTrackSaved = NowPlayingTrack is { } track && FavoriteTracks.Any(t => t.IsSameSong(track));
         NowPlayingStatus = StatusTexts.For(active.Status, isActive: true, active.Sound)
                            + (IsMuted ? " · muted" : "")
@@ -878,6 +1024,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         SaveSettings();
+        _historyPruneTimer.Stop();
+        SaveHistory();
         // Songs and the mute state are outdated once the app is closed.
         _jumpListTimer.Stop();
         UpdateJumpList(withSongs: false);
@@ -889,4 +1037,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _streamHttp.Dispose();
         _http.Dispose();
     }
+}
+
+/// <summary>The tabs next to each other above the right-hand panel of the full window.</summary>
+public enum MainTab
+{
+    Stations,
+    FavoriteTracks,
+    PlayHistory,
 }

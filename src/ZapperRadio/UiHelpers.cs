@@ -60,5 +60,8 @@ public static class UiHelpers
 
     public static string MuteToolTip(bool isMuted) => isMuted ? "Unmute (Ctrl+M)" : "Mute (Ctrl+M)";
 
+    /// <summary>The name and version on the about section of the settings, e.g. "ZapperRadio 1.10.0".</summary>
+    public static string AboutVersion(string version) => $"ZapperRadio {version}";
+
     private static string Glyph(int codePoint) => ((char)codePoint).ToString();
 }

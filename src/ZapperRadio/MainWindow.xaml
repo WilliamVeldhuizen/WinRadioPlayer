@@ -216,6 +216,11 @@
                                     <FontIcon Glyph="&#xE006;" />
                                 </SelectorBarItem.Icon>
                             </SelectorBarItem>
+                            <SelectorBarItem x:Name="PlayHistoryTab" Text="{x:Bind ViewModel.PlayHistoryHeader, Mode=OneWay}">
+                                <SelectorBarItem.Icon>
+                                    <FontIcon Glyph="&#xE81C;" />
+                                </SelectorBarItem.Icon>
+                            </SelectorBarItem>
                         </SelectorBar>
 
                         <Button
@@ -374,6 +379,90 @@
                                             ToolTipService.ToolTip="Remove from favorite tracks"
                                             Click="RemoveFavoriteTrack_Click">
                                             <FontIcon Glyph="&#xE711;" FontSize="12" />
+                                        </Button>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </Grid>
+
+                    <!-- Play history -->
+                    <Grid Grid.Row="1" Visibility="{x:Bind ViewModel.IsShowingPlayHistory, Mode=OneWay}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <Grid Padding="16,8,16,8" ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock
+                                Text="Everything your favorites played over the last 12 hours, newest first, whether or not you were listening to them. Click a heart to keep a song."
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                TextWrapping="Wrap" />
+                            <Button
+                                Grid.Column="1"
+                                Style="{StaticResource IconButtonStyle}"
+                                Width="32" Height="32"
+                                VerticalAlignment="Top"
+                                ToolTipService.ToolTip="Clear the play history"
+                                AutomationProperties.Name="Clear the play history"
+                                Command="{x:Bind ViewModel.ClearPlayHistoryCommand}">
+                                <FontIcon Glyph="&#xE74D;" FontSize="14" />
+                            </Button>
+                        </Grid>
+
+                        <TextBlock
+                            Grid.Row="1"
+                            Margin="16"
+                            Text="Nothing played yet. As soon as your favorites are streaming, every song they play is listed here."
+                            TextWrapping="Wrap"
+                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                            Visibility="{x:Bind ViewModel.HasNoPlayHistory, Mode=OneWay}" />
+
+                        <ListView
+                            Grid.Row="1"
+                            Padding="0,0,0,8"
+                            ItemsSource="{x:Bind ViewModel.PlayHistory}"
+                            SelectionMode="None">
+                            <ListView.ItemTemplate>
+                                <DataTemplate x:DataType="vm:PlayedTrackViewModel">
+                                    <Grid Padding="0,6" ColumnSpacing="4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="{x:Bind Title}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Title}" IsTextSelectionEnabled="True" />
+                                            <TextBlock
+                                                Text="{x:Bind Details}"
+                                                Style="{StaticResource CaptionTextBlockStyle}"
+                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                        <Button
+                                            Grid.Column="1"
+                                            Style="{StaticResource IconButtonStyle}"
+                                            VerticalAlignment="Center"
+                                            ToolTipService.ToolTip="{x:Bind local:UiHelpers.SaveTrackToolTip(IsSaved), Mode=OneWay}"
+                                            Click="ToggleHistoryTrackSaved_Click">
+                                            <FontIcon
+                                                FontSize="14"
+                                                Glyph="{x:Bind local:UiHelpers.HeartGlyph(IsSaved), Mode=OneWay}"
+                                                Foreground="{x:Bind local:UiHelpers.HeartBrush(IsSaved), Mode=OneWay}" />
+                                        </Button>
+                                        <Button
+                                            Grid.Column="2"
+                                            Style="{StaticResource IconButtonStyle}"
+                                            VerticalAlignment="Center"
+                                            ToolTipService.ToolTip="Copy title"
+                                            Click="CopyHistoryTrack_Click">
+                                            <FontIcon Glyph="&#xE8C8;" FontSize="14" />
                                         </Button>
                                     </Grid>
                                 </DataTemplate>
@@ -683,11 +772,21 @@
             DefaultButton="Close">
             <StackPanel Width="380" Spacing="18">
                 <StackPanel Spacing="2">
-                    <TextBlock Text="Version" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                    <TextBlock Text="About" Style="{StaticResource BodyStrongTextBlockStyle}" />
                     <TextBlock
-                        Text="{x:Bind ViewModel.AppVersion}"
+                        Text="{x:Bind local:UiHelpers.AboutVersion(ViewModel.AppVersion)}"
                         Style="{StaticResource CaptionTextBlockStyle}"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <TextBlock
+                        Text="Internet radio that keeps the streams of your favorites open, so switching is instant and you do not hear the ad a station plays when you connect."
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        TextWrapping="Wrap" />
+                    <!-- Aligned with the text above it, past the padding a button draws around its content. -->
+                    <HyperlinkButton
+                        Margin="-12,2,0,0"
+                        Content="ZapperRadio on GitHub"
+                        NavigateUri="https://github.com/WilliamVeldhuizen/ZapperRadio" />
                 </StackPanel>
 
                 <StackPanel Spacing="2">

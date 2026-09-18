@@ -84,7 +84,8 @@ public static class SongTexts
     {
         { Metadata.IsAd: true } => "Advertisement",
         { IsAssumedAdBreak: true } => "Probably an ad break",
-        { Metadata.Title: { } title } => title,
+        // Stations that shout their whole library are toned down, so the list does not shout along.
+        { Metadata.Title: { } title } => TrackTitle.Normalize(title),
         _ => "",
     };
 }

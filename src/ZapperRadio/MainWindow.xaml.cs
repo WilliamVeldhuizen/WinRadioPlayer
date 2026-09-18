@@ -145,7 +145,10 @@ public sealed partial class MainWindow : Window
     }
 
     private void Tabs_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args) =>
-        ViewModel.IsShowingFavoriteTracks = sender.SelectedItem == FavoriteTracksTab;
+        ViewModel.SelectedTab =
+            sender.SelectedItem == FavoriteTracksTab ? MainTab.FavoriteTracks
+            : sender.SelectedItem == PlayHistoryTab ? MainTab.PlayHistory
+            : MainTab.Stations;
 
     private void AddShortcut(VirtualKey key, Action action)
     {
@@ -262,15 +265,24 @@ public sealed partial class MainWindow : Window
     private void ToggleFavorite_Click(object sender, RoutedEventArgs e) =>
         ViewModel.ToggleFavorite(((StationResultViewModel)((FrameworkElement)sender).DataContext).Station);
 
-    private void CopyFavoriteTrack_Click(object sender, RoutedEventArgs e)
-    {
-        var package = new DataPackage();
-        package.SetText(((FavoriteTrack)((FrameworkElement)sender).DataContext).Title);
-        Clipboard.SetContent(package);
-    }
+    private void CopyFavoriteTrack_Click(object sender, RoutedEventArgs e) =>
+        CopyToClipboard(((FavoriteTrack)((FrameworkElement)sender).DataContext).Title);
 
     private void RemoveFavoriteTrack_Click(object sender, RoutedEventArgs e) =>
         ViewModel.RemoveFavoriteTrack((FavoriteTrack)((FrameworkElement)sender).DataContext);
+
+    private void CopyHistoryTrack_Click(object sender, RoutedEventArgs e) =>
+        CopyToClipboard(((PlayedTrackViewModel)((FrameworkElement)sender).DataContext).Title);
+
+    private void ToggleHistoryTrackSaved_Click(object sender, RoutedEventArgs e) =>
+        ViewModel.ToggleHistoryTrackSaved((PlayedTrackViewModel)((FrameworkElement)sender).DataContext);
+
+    private static void CopyToClipboard(string text)
+    {
+        var package = new DataPackage();
+        package.SetText(text);
+        Clipboard.SetContent(package);
+    }
 
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(nint hwnd);
