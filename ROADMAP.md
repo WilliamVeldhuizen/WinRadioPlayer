@@ -163,7 +163,28 @@ longer resets the clock (only a title shaped like "Artist - Title" is a new song
 counts as evidence of a song in `Channel.StateOf`, so a station name during a break is no longer mistaken
 for music.
 
+## 13. Start with Windows
+
+The app is meant to be on all day, and a radio you have to remember to open is a radio you forget.
+A switch in the settings, next to the global hotkeys, that lets Windows start the player with the
+session, and a second one beside it for starting quietly: minimized, and muted until you ask for
+sound, so a machine that boots does not start playing at whatever volume it was left at.
+
+The installer is a plain MSI and the app is unpackaged (`WindowsPackageType` is `None`), so there is
+no `StartupTask` manifest extension to declare. It is a value under
+`HKCU\Software\Microsoft\Windows\CurrentVersion\Run` naming the installed executable, written and
+removed by the app itself rather than by the installer, because it is a preference and not part of
+being installed, and per user, so it neither needs the elevation the MSI has nor turns itself on for
+everyone on the machine. The switch should read the key back rather than trust the setting: the
+Startup tab of Task Manager can switch an entry off behind the app's back, and a switch that says
+"on" while Windows disagrees is worse than no switch.
+
+A `--minimized` argument carries the quiet start from the registry value into `App.OnLaunched`, which
+is where this meets 5: with a tray icon it should start into the tray rather than the taskbar, so the
+two are best built together.
+
 ## Suggested order
 
-With 3, 4, 8 and 12 built, 5 is next: it pairs with the media keys and is about a day. Then 1, because
-it is the feature that cannot be copied without also keeping every stream open.
+With 3, 4, 8 and 12 built, 5 is next: it pairs with the media keys and is about a day, and 13 follows
+it straight away, because a player that starts with Windows wants somewhere quiet to start into. Then
+1, because it is the feature that cannot be copied without also keeping every stream open.
