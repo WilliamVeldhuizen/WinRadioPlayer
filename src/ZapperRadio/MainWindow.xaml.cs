@@ -85,6 +85,12 @@ public sealed partial class MainWindow : Window
     /// <summary>How tall one favorite is in the compact window, used until there is a row to ask.</summary>
     private const double FavoriteRowHeight = 44;
 
+    /// <summary>
+    /// True while a view is being put in place. The steps that takes - restoring a maximized window, moving it,
+    /// resizing it - each report a window that moved, and none of them is the user leaving it somewhere.
+    /// </summary>
+    private bool _placing;
+
     /// <summary>The text field inside the country box while it has focus.</summary>
     private TextBox? _countryText;
 
@@ -108,37 +114,67 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Puts the window back where the view being shown was last left, maximized if that is how it was left.
-    /// The first time a view is used it gets its default size, where the window already is.
+    /// Puts the window back where the view being shown was last left, maximized if that is how the full window
+    /// was left. The first time a view is used it gets its default size, where the window already is.
     /// </summary>
     private void PlaceWindow(bool compact)
     {
-        var saved = ViewModel.WindowPlacement(compact);
-        var presenter = AppWindow.Presenter as OverlappedPresenter;
+        _placing = true;
 
-        // A maximized window cannot be moved or resized, so it is restored first and maximized again below.
-        if (presenter is { State: OverlappedPresenterState.Maximized })
+        // A maximized window cannot be moved or resized, so the view being left is restored first. Windows takes
+        // its own time over a restore, so the placement waits for the next turn of the message loop rather than
+        // being undone by one that arrives after it.
+        if (AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Maximized } maximized)
         {
-            presenter.Restore();
-        }
-
-        if (saved is not null)
-        {
-            MoveOnScreen(new PointInt32(saved.X, saved.Y), new SizeInt32(saved.Width, saved.Height));
-        }
-        else
-        {
-            var scale = Scale;
-            MoveOnScreen(AppWindow.Position, new SizeInt32(
-                (int)((compact ? CompactWidth : FullWidth) * scale),
-                (int)((compact ? CompactHeight : FullHeight) * scale)));
+            maximized.Restore();
+            if (DispatcherQueue.TryEnqueue(() => ApplyPlacement(ViewModel.IsCompact)))
+            {
+                return;
+            }
         }
 
-        if (saved is { IsMaximized: true })
+        ApplyPlacement(compact);
+    }
+
+    /// <summary>
+    /// Sizes and positions the window for the view it now shows. The compact window is never maximized: it is a
+    /// list of favorites and nothing else, and a screen full of that is the full window with the middle left out,
+    /// so it is fitted to its favorites instead and its maximize button is turned off while it is up.
+    /// </summary>
+    private void ApplyPlacement(bool compact)
+    {
+        try
         {
-            presenter?.Maximize();
+            var saved = ViewModel.WindowPlacement(compact);
+            var presenter = AppWindow.Presenter as OverlappedPresenter;
+            if (presenter is not null)
+            {
+                presenter.IsMaximizable = !compact;
+            }
+
+            if (saved is not null)
+            {
+                MoveOnScreen(new PointInt32(saved.X, saved.Y), new SizeInt32(saved.Width, saved.Height));
+            }
+            else
+            {
+                var scale = Scale;
+                MoveOnScreen(AppWindow.Position, new SizeInt32(
+                    (int)((compact ? CompactWidth : FullWidth) * scale),
+                    (int)((compact ? CompactHeight : FullHeight) * scale)));
+            }
+
+            if (!compact && saved is { IsMaximized: true })
+            {
+                presenter?.Maximize();
+            }
         }
-        else if (compact)
+        finally
+        {
+            _placing = false;
+        }
+
+        if (compact)
         {
             FitCompactWindow();
         }
@@ -197,12 +233,19 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private void RememberWindow(bool compact)
     {
-        if (AppWindow.Presenter is not OverlappedPresenter presenter || presenter.State == OverlappedPresenterState.Minimized)
+        if (_placing || AppWindow.Presenter is not OverlappedPresenter presenter || presenter.State == OverlappedPresenterState.Minimized)
         {
             return;
         }
 
+        // The compact window is never maximized, so a maximized one while it is up is the full window on its way
+        // out, and its size is no size for the compact window to come back to.
         var maximized = presenter.State == OverlappedPresenterState.Maximized;
+        if (maximized && compact)
+        {
+            return;
+        }
+
         var restored = maximized ? ViewModel.WindowPlacement(compact) : null;
 
         ViewModel.RememberWindow(compact, new WindowPlacement
