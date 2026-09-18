@@ -393,6 +393,10 @@
 
             <Border Style="{StaticResource CardStyle}" Padding="10,8">
                 <Grid ColumnSpacing="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
@@ -459,6 +463,28 @@
                         Command="{x:Bind ViewModel.TogglePlaybackCommand}">
                         <FontIcon Glyph="{x:Bind local:UiHelpers.PlayGlyph(ViewModel.IsPlaying), Mode=OneWay}" FontSize="14" />
                     </Button>
+
+                    <Grid Grid.Row="1" Grid.ColumnSpan="3" Margin="0,4,0,0" ColumnSpacing="4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Button
+                            Width="32" Height="32" Padding="0"
+                            VerticalAlignment="Center"
+                            Background="Transparent" BorderThickness="0"
+                            ToolTipService.ToolTip="{x:Bind local:UiHelpers.MuteToolTip(ViewModel.IsMuted), Mode=OneWay}"
+                            AutomationProperties.Name="{x:Bind local:UiHelpers.MuteToolTip(ViewModel.IsMuted), Mode=OneWay}"
+                            Command="{x:Bind ViewModel.ToggleMuteCommand}">
+                            <FontIcon Glyph="{x:Bind local:UiHelpers.MuteGlyph(ViewModel.IsMuted), Mode=OneWay}" FontSize="14" />
+                        </Button>
+                        <Slider
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            AutomationProperties.Name="Volume"
+                            Minimum="0" Maximum="100" StepFrequency="1"
+                            Value="{x:Bind ViewModel.Volume, Mode=TwoWay}" />
+                    </Grid>
                 </Grid>
             </Border>
 
