@@ -29,12 +29,22 @@ PCM of every stream is decoded anyway, so a running EBU R128-style loudness esti
 gives a per-station gain that is applied on unmute, and a manual per-station trim in the settings.
 Lives in `StationStream` / `RadioEngine`.
 
-## 4. SMTC, media keys and global hotkeys
+## 4. Lock screen, media keys and global hotkeys
 
-There is no `SystemMediaTransportControls` integration yet. Adding it gives the Windows volume
-flyout the station logo, artist and title, and makes play/pause and next work from keyboard media
-keys and Bluetooth headsets, where "next" maps naturally to zapping to the next favorite. The
-existing `Ctrl+Space` and `Ctrl+M` shortcuts only work while the window has focus; registering
+There is no `SystemMediaTransportControls` integration yet, which is the one Windows feature the app
+visibly lacks next to Spotify. One API gets all of it: the station logo, artist and title in the
+Windows volume flyout, the same card with play, pause and next on the **lock screen** while a station
+is playing, and play/pause and next from keyboard media keys and Bluetooth headsets, where "next"
+maps naturally to zapping to the next favorite.
+
+Two things need care. `StationStream` deliberately turns the per-player overlay off
+(`_player.CommandManager.IsEnabled = false`), because up to twenty `MediaPlayer` instances are alive
+at once and each one would claim the overlay for itself; the controls therefore belong to the app,
+fed from `MainViewModel.UpdateNowPlaying`, which already has the station, the song and the logo URL.
+And a WinUI 3 desktop app has no view to ask, so `GetForCurrentView` does not apply: the controls are
+obtained for the window handle through `ISystemMediaTransportControlsInterop`.
+
+The existing `Ctrl+Space` and `Ctrl+M` shortcuts only work while the window has focus; registering
 them globally (`RegisterHotKey`) makes them work from any app. Low effort, high daily value.
 
 ## 5. Tray icon and minimize to tray
@@ -84,7 +94,53 @@ A shareable JSON (or `.m3u`) of the favorites makes it possible to move machines
 publish a preset. Alongside it, named favorite sets (Work, Weekend, Dance) keep the cap of 20 open
 streams while removing the ceiling as a practical limit: only the active set streams.
 
+## 11. More languages
+
+Every string in the app is English today, written out where it is used. The station list is worldwide
+and most of its listeners are not, so the player should speak the language Windows is set to, starting
+with the ones the favorites are in: Dutch, German, French and Spanish.
+
+The work is mostly mechanical: an `x:Uid` on each XAML element and a `Resources.resw` per language,
+a `ResourceLoader` for the strings that are built in code (`StatusTexts`, `SongTexts`,
+`JumpListCommand.Title`, the error messages and the settings texts), and the installer texts on top
+of that. The dates and times are pinned to `en-US` in `FavoriteTrack`, `PlayedTrack` and
+`MainViewModel`, which should follow the chosen language instead.
+
+Two things are not mechanical. `MainViewModel.AllCountries` is the text "All countries" *and* the
+value the country box is compared against to mean "no filter", so as soon as it is translated the
+comparisons stop matching for anyone who switches language; it needs a sentinel of its own, separate
+from what is shown. And the country and genre names come from the station list in English, so either
+they stay English while the rest of the window is translated, or a mapping per language is kept for
+the few dozen countries that matter. Neither is hard, but both decide how finished the result feels.
+
+## 12. Start the song clock when the song starts, not when its title arrives
+
+The unmarked ad break detection of item 4 in the README times a song from the moment its title comes
+in: `StationStream.WatchSongEndAsync` takes `DateTime.UtcNow` there and sets `_songEndTimer` to
+`title arrival + length + SongOverrun`, 30 seconds. That assumes the title and the song start together,
+and plenty of stations do not work that way. Their playout system announces the next item while the
+current one is still fading, or over the jingle in between, so the title runs 10 to 20 seconds ahead
+of the audio.
+
+The clock then starts too early and the 30 seconds of slack quietly shrink to 10. The song is marked
+overdue while it is still playing or has only just ended, and the first presenter or station ident
+after it is enough for `UnmarkedAdBreak` to call a break that is not one: a yellow "Probably an ad
+break", and with zapping on, a zap away from a station that was about to play the next song.
+
+The audio already says when the song really starts, so anchor the clock to that instead: hold the
+timer while the stream sounds like speech and start it at the first window of music. The one thing to
+get right is that `SetMetadata` calls `_sound.Clear()` on every new title and `SoundHistory.Current`
+needs three windows (about 15 seconds) before it says anything, so the decision cannot be read at the
+instant the title arrives - it has to come from the windows that follow it, in `AddSound`. A cap on
+the wait keeps a quiet or instrumental intro, which classifies as neither, from holding the timer
+forever, and streams that are not classified at all (HLS, which skips the relay) keep timing from the
+title as they do now.
+
+Worth doing before the slack is tuned: with the clock anchored to the song, `SongOverrun` means what
+it says again, and can probably come down, which makes the real breaks show up sooner too.
+
 ## Suggested order
 
-Start with 4 and 5: about a day each, and they change how the app feels every day. Then 1, because
+Start with 4 and 5: about a day each, and they change how the app feels every day. Then 12, which is
+an afternoon and makes the zapper, the thing the app is named after, wrong less often. Then 1, because
 it is the feature that cannot be copied without also keeping every stream open.
