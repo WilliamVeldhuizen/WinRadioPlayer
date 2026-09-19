@@ -43,7 +43,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly DispatcherQueueTimer _historySaveTimer;
     private readonly DispatcherQueueTimer _historyPruneTimer;
     private readonly DispatcherQueueTimer _historySearchDebounce;
-    private readonly DispatcherQueueTimer _trimSaveTimer;
 
     private List<StationResultViewModel> _allStations = [];
     private CancellationTokenSource? _searchCts;
@@ -93,10 +92,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         // Before the first stream is opened, so a station starts at the loudness it was measured at last time.
         _engine.NormalizeLoudness = _settings.NormalizeLoudness;
-        foreach (var (url, trim) in _settings.StationTrims)
-        {
-            _engine.SetTrim(url, trim);
-        }
 
         foreach (var (url, loudness) in _settings.StationLoudness)
         {
@@ -132,11 +127,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _historySearchDebounce.Interval = TimeSpan.FromMilliseconds(250);
         _historySearchDebounce.IsRepeating = false;
         _historySearchDebounce.Tick += (_, _) => ApplyHistorySearch();
-
-        _trimSaveTimer = dispatcher.CreateTimer();
-        _trimSaveTimer.Interval = TimeSpan.FromMilliseconds(500);
-        _trimSaveTimer.IsRepeating = false;
-        _trimSaveTimer.Tick += (_, _) => SaveSettings();
 
         Volume = _engine.Volume * 100;
         SelectedCountry = _settings.Country ?? AllCountries;
@@ -582,12 +572,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         AddFavorite(station);
     }
 
-    /// <summary>Adds a favorite with the loudness trim it was given earlier, and follows any change to that trim.</summary>
     private void AddFavorite(Station station)
     {
-        // The trim is set before the handler is attached, so restoring it does not count as a change to save.
-        var favorite = new FavoriteViewModel(station) { TrimDb = _settings.StationTrims.GetValueOrDefault(station.Url) };
-        favorite.PropertyChanged += OnFavoritePropertyChanged;
+        var favorite = new FavoriteViewModel(station);
         Favorites.Add(favorite);
         _ = LoadFavoriteLogoAsync(favorite);
     }
@@ -831,31 +818,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         SaveSettings();
     }
 
-    /// <summary>Follows the loudness slider of a favorite in the settings: it is heard at once and saved shortly after.</summary>
-    private void OnFavoritePropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName != nameof(FavoriteViewModel.TrimDb) || sender is not FavoriteViewModel favorite)
-        {
-            return;
-        }
-
-        var url = favorite.Station.Url;
-        if (Math.Abs(favorite.TrimDb) < 0.05)
-        {
-            _settings.StationTrims.Remove(url);
-        }
-        else
-        {
-            _settings.StationTrims[url] = favorite.TrimDb;
-        }
-
-        _engine.SetTrim(url, favorite.TrimDb);
-        // Dragging the slider changes it many times a second, which is far too often to write the file for.
-        if (!_trimSaveTimer.IsRunning)
-        {
-            _trimSaveTimer.Start();
-        }
-    }
+    /// <summary>The loudness button of the settings: every favorite measures its music again and corrects itself to the result.</summary>
+    [RelayCommand]
+    private void RemeasureLoudness() => _engine.RemeasureLoudness();
 
     private void OnStreamLoudnessChanged(StationStream stream)
     {
@@ -874,7 +839,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         foreach (var favorite in Favorites)
         {
             favorite.LoudnessText = _engine.Find(favorite.Station.Url) is { } stream
-                ? LoudnessTexts.For(stream.MeasuredLoudness, stream.MeasuredGainDb, NormalizeLoudness)
+                ? LoudnessTexts.For(stream.MeasuredLoudness, stream.MeasuredGainDb, NormalizeLoudness, stream.IsRemeasuring)
                 : LoudnessTexts.NotMeasured;
         }
     }
@@ -1235,7 +1200,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         SaveSettings();
         _historyPruneTimer.Stop();
-        _trimSaveTimer.Stop();
         SaveHistory();
         // Songs and the mute state are outdated once the app is closed.
         _jumpListTimer.Stop();

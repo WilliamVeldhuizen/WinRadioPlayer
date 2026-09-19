@@ -77,13 +77,6 @@ public sealed partial class FavoriteViewModel(Station station) : ObservableObjec
 
     public string StatusText => StatusTexts.For(Status, IsActive, Sound);
 
-    /// <summary>The manual correction for this station in decibels, set with the slider in the settings.</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(TrimText))]
-    public partial double TrimDb { get; set; }
-
-    public string TrimText => LoudnessTexts.Trim(TrimDb);
-
     /// <summary>What was measured of this station's loudness, as the settings show it.</summary>
     [ObservableProperty]
     public partial string LoudnessText { get; set; } = LoudnessTexts.NotMeasured;
@@ -111,9 +104,10 @@ public static class LoudnessTexts
 
     /// <summary>
     /// The loudness of a station and what is done about it, e.g. "-9.3 LUFS · turned down 4.7 dB". The correction
-    /// is left out while it is switched off, because the measurement is still worth showing.
+    /// is left out while it is switched off, because the measurement is still worth showing. While the station is
+    /// measured again, the old numbers are still the ones in use, and the text says another measurement is coming.
     /// </summary>
-    public static string For(double? loudness, double gainDb, bool normalize)
+    public static string For(double? loudness, double gainDb, bool normalize, bool remeasuring = false)
     {
         if (loudness is not { } measured)
         {
@@ -121,14 +115,13 @@ public static class LoudnessTexts
         }
 
         var level = string.Format(Numbers, "{0:0.0} LUFS", measured);
-        return !normalize || Math.Abs(gainDb) < 0.05
-            ? level
-            : level + string.Format(Numbers, " · turned {0} {1:0.0} dB", gainDb < 0 ? "down" : "up", Math.Abs(gainDb));
-    }
+        if (normalize && Math.Abs(gainDb) >= 0.05)
+        {
+            level += string.Format(Numbers, " · turned {0} {1:0.0} dB", gainDb < 0 ? "down" : "up", Math.Abs(gainDb));
+        }
 
-    /// <summary>A manual correction as it is written next to its slider, e.g. "+3.0 dB" or "0 dB".</summary>
-    public static string Trim(double trimDb) =>
-        Math.Abs(trimDb) < 0.05 ? "0 dB" : string.Format(Numbers, "{0:+0.0;-0.0} dB", trimDb);
+        return remeasuring ? level + " · measuring again…" : level;
+    }
 }
 
 public static class StatusTexts

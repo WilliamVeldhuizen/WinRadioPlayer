@@ -962,10 +962,6 @@
                             IsChecked="{x:Bind ViewModel.NormalizeLoudness, Mode=TwoWay}"
                             ToolTipService.ToolTip="Brings every station to about -14 LUFS, the level streaming services normalize to, by at most 12 dB down or 6 dB up. A station that has to go up cannot pass full volume, so with the slider at the top it may stay a little quieter." />
                         <TextBlock
-                            Margin="0,6,0,0"
-                            Text="Per station, on top of that: drag to make one quieter or louder yourself."
-                            Style="{StaticResource SettingsTextStyle}" />
-                        <TextBlock
                             Margin="0,2,0,0"
                             Text="No favorites yet."
                             Style="{StaticResource SettingsTextStyle}"
@@ -973,38 +969,21 @@
                         <ItemsControl Margin="0,4,0,0" ItemsSource="{x:Bind ViewModel.Favorites}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:FavoriteViewModel">
-                                    <Grid ColumnSpacing="8" Margin="0,1">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="150" />
-                                            <ColumnDefinition Width="52" />
-                                        </Grid.ColumnDefinitions>
-
-                                        <StackPanel VerticalAlignment="Center">
-                                            <TextBlock Text="{x:Bind Name}" FontSize="12" TextTrimming="CharacterEllipsis" />
-                                            <TextBlock
-                                                Text="{x:Bind LoudnessText, Mode=OneWay}"
-                                                FontSize="11"
-                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                        </StackPanel>
-
-                                        <Slider
-                                            Grid.Column="1"
-                                            VerticalAlignment="Center"
-                                            Minimum="-12" Maximum="12" StepFrequency="0.5"
-                                            AutomationProperties.Name="{x:Bind Name}"
-                                            ToolTipService.ToolTip="Decibels on top of the measured loudness of this station"
-                                            Value="{x:Bind TrimDb, Mode=TwoWay}" />
+                                    <StackPanel Margin="0,1">
+                                        <TextBlock Text="{x:Bind Name}" FontSize="12" TextTrimming="CharacterEllipsis" />
                                         <TextBlock
-                                            Grid.Column="2"
-                                            VerticalAlignment="Center"
-                                            Text="{x:Bind TrimText, Mode=OneWay}"
+                                            Text="{x:Bind LoudnessText, Mode=OneWay}"
                                             FontSize="11"
                                             Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                    </Grid>
+                                    </StackPanel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+                        <Button
+                            Style="{StaticResource SettingsButtonStyle}"
+                            Content="Measure loudness again"
+                            Command="{x:Bind ViewModel.RemeasureLoudnessCommand}"
+                            ToolTipService.ToolTip="Forgets what was heard of every favorite so far and measures it again. The volume keeps the current correction until about a minute of music has been heard, and then moves to the new result." />
                     </StackPanel>
 
                     <StackPanel Spacing="2">

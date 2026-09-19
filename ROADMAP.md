@@ -36,9 +36,10 @@ down. After about a minute of music (12 windows) it gives a gain towards -14 LUF
 normalize to, clamped to -12..+6 dB.
 
 `StationStream` owns the estimate, so it survives a reconnect, and applies `volume * gain` to its own player;
-`RadioEngine` keeps the manual trims and the loudness measured in an earlier run, which `AppSettings` stores per
+`RadioEngine` keeps the loudness measured in an earlier run, which `AppSettings` stores per
 station so the correction is there from the first second of the next run. The settings show the measurement per
-favorite with a slider for the manual trim, and a switch for the whole thing. The one real limit is that
+favorite with a button to measure again (`StationStream.Remeasure` starts a fresh histogram and keeps the old
+correction until it has a new estimate), and a switch for the whole thing. The one real limit is that
 `MediaPlayer.Volume` stops at 1, so a station that needs a boost cannot get one with the volume slider at the top.
 
 ## 4. Lock screen, media keys and global hotkeys - built in 1.11.0
